@@ -1,0 +1,15 @@
+{
+  "name": "speaking-practice-platform",
+  "version": "1.0.0",
+  "description": "An AI-powered speaking practice platform with real-time conversation, feedback, and evaluation.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
