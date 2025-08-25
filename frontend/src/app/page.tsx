@@ -50,7 +50,7 @@ export default function Home() {
 
             {/* trust badges */}
             <div className="mt-6 text-sm text-slate-500 dark:text-slate-400">
-              Works in your browser • No installs • Voice ready
+             
             </div>
           </div>
         </div>
