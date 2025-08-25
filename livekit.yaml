@@ -4,8 +4,8 @@ rtc:
   port_range_end: 60000
   use_external_ip: true
 redis:
-  address: redis:6379
+  address: redis:6379   # service name di docker-compose
 keys:
-  devkey: devsecret
+  devkey: devsecret     # match dengan .env kamu (dev saja)
 logging:
-  level: info 
+  level: info
