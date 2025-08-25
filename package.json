@@ -1,15 +1,17 @@
 {
-  "name": "speaking-practice-platform",
+  "name": "english-speaking-practice-app",
   "version": "1.0.0",
-  "description": "An AI-powered speaking practice platform with real-time conversation, feedback, and evaluation.",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "private": true,
+  "description": "AI-powered English speaking practice (FastAPI + Next.js + Groq + LiveKit).",
+  "workspaces": ["frontend"],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "docker compose up --build",
+    "stop": "docker compose down",
+    "backend:dev": "uvicorn app.main:app --reload --port 8000 --app-dir backend/app",
+    "frontend:dev": "npm --workspace frontend run dev",
+    "frontend:build": "npm --workspace frontend run build",
+    "frontend:start": "npm --workspace frontend run start"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "license": "MIT",
+  "author": ""
 }
