@@ -1,4 +1,4 @@
-# 🗣️ AI Speaking Practice Platform
+# 🗣️ English Speaking Practice App
 
 Aplikasi web untuk latihan speaking bahasa Inggris dengan **Agentic AI**.  
 User bisa berlatih percakapan dengan AI, menerima feedback otomatis, lalu lanjut ke *reflection* dan *next session plan* agar progres terasa seperti kursus pribadi.  
