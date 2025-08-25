@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "postinstall": "npx -y @types/node @types/react @types/react-dom typescript"
+    "lint": "next lint"
   },
   "dependencies": {
     "@livekit/components-react": "^1.5.2",
