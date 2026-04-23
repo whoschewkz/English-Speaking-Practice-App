@@ -2,26 +2,88 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design tokens ─────────────────────────────────────────────── */
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  /* Accent */
+  --accent:        #00c896;
+  --accent-dim:    rgba(0, 200, 150, 0.12);
+  --accent-border: rgba(0, 200, 150, 0.25);
+
+  /* Light mode surfaces */
+  --bg:      #f6f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f0f3;
+  --border:  rgba(0, 0, 0, 0.08);
+  --border2: rgba(0, 0, 0, 0.14);
+
+  /* Light mode text */
+  --text:    #0c0c10;
+  --text2:   #4b4b5a;
+  --text3:   #9090a0;
+
+  /* Semantic */
+  --warn:    #f59e0b;
+  --danger:  #ef4444;
+  --ok:      #10b981;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+.dark {
+  --bg:      #0c0c10;
+  --surface: #13131a;
+  --surface2: #1a1a24;
+  --border:  rgba(255, 255, 255, 0.07);
+  --border2: rgba(255, 255, 255, 0.12);
+  --text:    #f0f0f4;
+  --text2:   #9090a8;
+  --text3:   #55555f;
 }
+
+/* ── Base ──────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { transition: background-color 0.2s, color 0.2s; }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
-} 
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* ── Focus ring ────────────────────────────────────────────────── */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Autofill fix (dark bg input) ──────────────────────────────── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset !important;
+  -webkit-text-fill-color: var(--text) !important;
+  caret-color: var(--text);
+}
+
+/* ── Animations ────────────────────────────────────────────────── */
+@keyframes spin   { to { transform: rotate(360deg); } }
+@keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+@keyframes ping   { 75%,100% { transform:scale(2); opacity:0; } }
+@keyframes bounce {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-5px); }
+}
+
+.animate-spin    { animation: spin 1s linear infinite; }
+.animate-fadeUp  { animation: fadeUp .25s ease both; }
+.animate-ping    { animation: ping 1.2s cubic-bezier(0,0,.2,1) infinite; }
+
+/* ── Responsive utilities ──────────────────────────────────────── */
+.sm-show { display: none; }
+@media (min-width: 640px) { .sm-show { display: inline !important; } }
+
+/* ── Spinner keyframe (referenced by Icon.Spinner) ─────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }

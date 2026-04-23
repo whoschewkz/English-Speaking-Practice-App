@@ -17,7 +17,7 @@ alembic==1.12.1
 sqlalchemy==2.0.23
 
 # LiveKit stack 1.0
-livekit==1.0.*
-livekit-api==1.0.*
-livekit-agents==1.2.*   # cocok dengan livekit 1.0
-aiofiles>=24,<25        # penting untuk livekit 1.0
+# livekit==1.0.*
+# livekit-api==1.0.*
+# livekit-agents==1.2.*   # cocok dengan livekit 1.0
+# aiofiles>=24,<25        # penting untuk livekit 1.0

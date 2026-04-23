@@ -1,191 +1,311 @@
 "use client";
-
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { authFetch, TokenStore } from "@/utils/auth";
+import { NavBar, Icon, useTheme } from "@/components/shared";
 
 type Profile = {
-  user_id: number;
-  level: number;
-  target_cefr: string;
-  sessions_count: number;
-  ma: {
-    pronunciation: number;
-    grammar: number;
-    fluency: number;
-    vocabulary: number;
-    overall: number;
-  };
+  level: number; target_cefr: string; sessions_count: number;
+  ma: { range: number; accuracy: number; fluency: number; coherence: number; phonology: number; overall: number };
 };
+type Session = { id: number; scenario: string; score_overall: number; created_at: string };
+type Stats   = { total_minutes: number; total_hours: number };
 
-type RecentSession = {
-  id: number;
-  scenario: string;
-  score_overall: number;
-  created_at: string; // ISO
+const DIM: Record<string, string> = {
+  range:"Kosakata", accuracy:"Tata Bahasa", fluency:"Kelancaran", coherence:"Koherensi", phonology:"Pelafalan",
 };
-
-type Stats = {
-  total_minutes: number;
-  total_hours: number;
-  sessions_count: number;
+const TIPS: Record<string, string> = {
+  range:     "Baca artikel bahasa Inggris setiap hari dan catat kosakata baru.",
+  accuracy:  "Fokus latihan tense dan artikel. Minta AI koreksi setiap kalimatmu.",
+  fluency:   "Latih berbicara tanpa berhenti. Gunakan filler alami seperti 'well', 'you see'.",
+  coherence: "Struktur jawaban: point → reason → example. Gunakan 'first, then, finally'.",
+  phonology: "Dengarkan podcast native speaker dan tiru intonasi mereka.",
 };
+function cefrKey(s: number) {
+  if (s >= 4.5) return "C1+"; if (s >= 3.5) return "B2"; if (s >= 2.5) return "B1"; if (s >= 1.5) return "A2"; return "A1";
+}
+function toP(s: number) { return Math.max(0, Math.min(100, ((s-1)/4)*100)); }
+function scoreCol(s: number) {
+  return s >= 3.5 ? "var(--accent)" : s >= 2.5 ? "var(--warn)" : "var(--danger)";
+}
 
 export default function DashboardPage() {
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+  const API  = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/,"");
+  const { dark } = useTheme();
 
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [recent, setRecent] = useState<RecentSession[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+  const [profile, setProfile]   = useState<Profile|null>(null);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [stats, setStats]       = useState<Stats|null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [err, setErr]           = useState<string|null>(null);
+  const [username, setUsername] = useState("");
+  const [mounted, setMounted]   = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    if (!TokenStore.isLoggedIn()) { window.location.href="/auth"; return; }
+    if (TokenStore.getRole()==="admin") { window.location.href="/admin"; return; }
+    setUsername(TokenStore.getUsername()||"");
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     let alive = true;
     (async () => {
       try {
-        setLoading(true);
-        setErr(null);
-
-        const [pRes, rRes, sRes] = await Promise.all([
-          fetch(`${API_BASE}/api/profile`, { cache: "no-store" }),
-          fetch(`${API_BASE}/api/sessions/recent?limit=10`, { cache: "no-store" }),
-          fetch(`${API_BASE}/api/sessions/stats`, { cache: "no-store" }),
+        setLoading(true); setErr(null);
+        const [pR,sR,stR] = await Promise.all([
+          authFetch(`${API}/api/profile`),
+          authFetch(`${API}/api/sessions/recent?limit=8`),
+          authFetch(`${API}/api/sessions/stats`),
         ]);
-
-        if (!pRes.ok) throw new Error(await pRes.text());
-        if (!rRes.ok) throw new Error(await rRes.text());
-        if (!sRes.ok) throw new Error(await sRes.text());
-
-        const pJson = (await pRes.json()) as Profile;
-        const rJson = (await rRes.json()) as RecentSession[];
-        const sJson = (await sRes.json()) as Stats;
-
-        if (alive) {
-          setProfile(pJson);
-          setRecent(Array.isArray(rJson) ? rJson : []);
-          setStats(sJson);
-        }
-      } catch (e: any) {
-        if (alive) setErr(e?.message || "Failed to load dashboard data.");
-      } finally {
-        if (alive) setLoading(false);
-      }
+        if (!pR.ok||!sR.ok||!stR.ok) throw new Error("Gagal memuat data.");
+        if (alive) { setProfile(await pR.json()); setSessions(await sR.json()); setStats(await stR.json()); }
+      } catch(e:any) { if(alive) setErr(e?.message); }
+      finally { if(alive) setLoading(false); }
     })();
+    return () => { alive=false; };
+  }, [mounted, API]);
 
-    return () => {
-      alive = false;
-    };
-  }, [API_BASE]);
+  const overall   = profile?.ma?.overall ?? 0;
+  const weakDim   = profile
+    ? Object.entries(profile.ma).filter(([k])=>k!=="overall").sort(([,a],[,b])=>a-b)[0]?.[0]
+    : null;
+  const fmt = useMemo(() => new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short",year:"numeric"}), []);
 
-  const avgScore = useMemo(() => {
-    if (profile?.ma?.overall == null) return null;
-    return Number(profile.ma.overall.toFixed(1));
-  }, [profile]);
+  if (!mounted) return null;
 
-  const totalPracticeTimeDisplay = useMemo(() => {
-    if (!stats) return "—";
-    // tampilkan jam dengan 1 desimal, mis. "2.3 hours"
-    return `${stats.total_hours.toFixed(1)} hours`;
-  }, [stats]);
+  // Card style helper
+  const card = {
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: "20px",
+  };
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-8">
-      <div className="w-full max-w-6xl">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Your Dashboard</h1>
-          <Link
-            href="/"
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            Back to Home
-          </Link>
-        </div>
+    <div style={{ minHeight:"100vh", background:"var(--bg)" }}>
+      <NavBar
+        links={[
+          { label:"Latihan", href:"/practice" },
+          { label:"Dashboard", href:"/dashboard", active:true },
+        ]}
+      />
 
-        {loading ? (
-          <div className="w-full max-w-6xl text-gray-500">Loading…</div>
-        ) : err ? (
-          <div className="w-full max-w-6xl text-red-600">
-            Failed to load: {err}
+      <main className="max-w-5xl mx-auto px-5 py-8 space-y-6">
+        {loading && (
+          <div className="flex items-center justify-center h-48 gap-3" style={{ color:"var(--text3)" }}>
+            <Icon.Spinner width={18} height={18} />
+            <span className="text-sm">Memuat…</span>
           </div>
-        ) : (
+        )}
+
+        {!loading && err && (
+          <div className="rounded-2xl p-6 text-center border"
+            style={{ background:"rgba(239,68,68,0.06)", borderColor:"rgba(239,68,68,0.2)" }}>
+            <p className="text-sm font-medium mb-3" style={{ color:"var(--danger)" }}>{err}</p>
+            <button onClick={()=>window.location.reload()}
+              className="px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors"
+              style={{ background:"var(--danger)" }}>
+              Coba Lagi
+            </button>
+          </div>
+        )}
+
+        {!loading && !err && (
           <>
-            {/* Summary cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white shadow-md rounded-lg p-6">
-                <h2 className="text-xl font-semibold mb-2">Total Practice Time</h2>
-                <p className="text-3xl font-bold text-blue-600">
-                  {totalPracticeTimeDisplay}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  ({stats?.total_minutes.toFixed(0)} minutes)
-                </p>
-              </div>
-
-              <div className="bg-white shadow-md rounded-lg p-6">
-                <h2 className="text-xl font-semibold mb-2">Sessions Completed</h2>
-                <p className="text-3xl font-bold text-blue-600">
-                  {profile?.sessions_count ?? 0}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">
-                  Level: <span className="font-semibold">{profile?.level ?? "-"}</span>{" "}
-                  • Target: <span className="font-semibold">{profile?.target_cefr ?? "-"}</span>
+            {/* ── Greeting + CTA ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight" style={{ color:"var(--text)" }}>
+                  Hai, <span style={{ color:"var(--accent)" }}>{username}</span> 👋
+                </h1>
+                <p className="text-sm mt-1" style={{ color:"var(--text3)" }}>
+                  {profile?.sessions_count
+                    ? `${profile.sessions_count} sesi selesai · Level ${profile.level} · Target ${profile.target_cefr}`
+                    : "Mulai sesi pertamamu hari ini."}
                 </p>
               </div>
+              <Link href="/practice/agent"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 flex-shrink-0"
+                style={{ background:"var(--accent)" }}>
+                <Icon.Bolt width={14} height={14} style={{ stroke:"#0c0c10" }} />
+                <span style={{ color:"#0c0c10" }}>Latihan AI</span>
+              </Link>
+            </div>
 
-              <div className="bg-white shadow-md rounded-lg p-6">
-                <h2 className="text-xl font-semibold mb-2">Average Score</h2>
-                <p className="text-3xl font-bold text-blue-600">
-                  {avgScore != null ? `${avgScore}/10` : "—"}
-                </p>
-                {profile && (
-                  <div className="text-xs text-gray-600 mt-3 space-y-1">
-                    <div>Pronunciation: {profile.ma.pronunciation.toFixed(1)}/10</div>
-                    <div>Grammar: {profile.ma.grammar.toFixed(1)}/10</div>
-                    <div>Fluency: {profile.ma.fluency.toFixed(1)}/10</div>
-                    <div>Vocabulary: {profile.ma.vocabulary.toFixed(1)}/10</div>
+            {/* ── CEFR level banner ── */}
+            <div className="rounded-2xl p-6 border" style={{ ...card, borderColor:"var(--accent-border)", background:"var(--accent-dim)" }}>
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"var(--accent)" }}>Level CEFR</p>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-5xl font-black" style={{ color:"var(--accent)" }}>{cefrKey(overall)}</span>
+                    <span className="text-lg font-medium" style={{ color:"var(--text2)" }}>{overall.toFixed(1)}/5</span>
                   </div>
-                )}
+                </div>
+                <div className="text-right">
+                  <p className="text-xs mb-1" style={{ color:"var(--text3)" }}>Target</p>
+                  <p className="text-2xl font-bold" style={{ color:"var(--text2)" }}>{profile?.target_cefr ?? "B1"}</p>
+                </div>
+              </div>
+              {/* Level track */}
+              <div className="mt-5">
+                <div className="flex justify-between text-xs mb-2" style={{ color:"var(--text3)" }}>
+                  {["A1","A2","B1","B2","C1+"].map(l=><span key={l}>{l}</span>)}
+                </div>
+                <div className="h-2 rounded-full" style={{ background:"var(--border2)" }}>
+                  <div className="h-full rounded-full transition-all duration-700"
+                    style={{ width:`${toP(overall)}%`, background:"var(--accent)" }} />
+                </div>
+                {/* Level dots */}
+                <div className="flex gap-1.5 mt-3">
+                  {[1,2,3,4,5].map(l => (
+                    <div key={l} className="h-1.5 flex-1 rounded-full transition-all"
+                      style={{ background: l<=(profile?.level??0) ? "var(--accent)" : "var(--border2)" }} />
+                  ))}
+                </div>
+                <p className="text-xs mt-1" style={{ color:"var(--text3)" }}>Level {profile?.level ?? 1} dari 5</p>
               </div>
             </div>
 
-            {/* Practice History */}
-            <div className="bg-white shadow-md rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4">Practice History</h2>
-              {recent.length > 0 ? (
-                <div className="divide-y">
-                  {recent.map((s) => {
-                    const d = new Date(s.created_at);
-                    const dateLabel = isNaN(d.getTime())
-                      ? s.created_at
-                      : d.toLocaleString(undefined, {
-                          year: "numeric",
-                          month: "short",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        });
-                    return (
-                      <div key={s.id} className="py-3">
-                        <div className="flex justify-between">
-                          <h3 className="font-medium">{s.scenario}</h3>
-                          <span className="text-sm text-gray-500">{dateLabel}</span>
+            {/* ── Stats ── */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label:"Total sesi",   value: String(profile?.sessions_count??0), unit:"sesi" },
+                { label:"Waktu latihan", value: (stats?.total_hours??0).toFixed(1), unit:"jam" },
+                { label:"Skor rata-rata",value: overall.toFixed(1), unit:"/5" },
+              ].map(s => (
+                <div key={s.label} className="rounded-2xl p-5" style={card}>
+                  <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color:"var(--text3)" }}>{s.label}</p>
+                  <p className="text-2xl font-bold" style={{ color:"var(--text)" }}>{s.value}<span className="text-base font-normal ml-0.5" style={{ color:"var(--text3)" }}>{s.unit}</span></p>
+                </div>
+              ))}
+            </div>
+
+            {/* ── CEFR profile + tip ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              {/* Bars */}
+              <div className="lg:col-span-3 rounded-2xl p-6" style={card}>
+                <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color:"var(--text3)" }}>Profil kemampuan</p>
+                {profile ? (
+                  <div className="space-y-4">
+                    {(["range","accuracy","fluency","coherence","phonology"] as const).map(d => {
+                      const v = profile.ma[d];
+                      const col = scoreCol(v);
+                      const isWeak = d === weakDim;
+                      return (
+                        <div key={d}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm" style={{ color:"var(--text2)" }}>{DIM[d]}</span>
+                              {isWeak && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold border"
+                                  style={{ color:"var(--warn)", background:"rgba(245,158,11,0.08)", borderColor:"rgba(245,158,11,0.25)" }}>
+                                  perlu latihan
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold" style={{ color:col }}>{v.toFixed(1)}</span>
+                              <span className="text-xs font-semibold w-8 text-right" style={{ color:"var(--text3)" }}>{cefrKey(v)}</span>
+                            </div>
+                          </div>
+                          <div className="h-1.5 rounded-full" style={{ background:"var(--border2)" }}>
+                            <div className="h-full rounded-full transition-all duration-700"
+                              style={{ width:`${toP(v)}%`, background: isWeak ? "var(--warn)" : col }} />
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Score: {s.score_overall?.toFixed(1) ?? "0.0"}/10
-                        </p>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm" style={{ color:"var(--text3)" }}>Selesaikan sesi pertama untuk melihat profil.</p>
+                )}
+              </div>
+
+              {/* Tip + quick level */}
+              <div className="lg:col-span-2 flex flex-col gap-3">
+                {weakDim ? (
+                  <div className="flex-1 rounded-2xl p-6 border"
+                    style={{ background:"rgba(245,158,11,0.05)", borderColor:"rgba(245,158,11,0.2)" }}>
+                    <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color:"var(--warn)" }}>Rekomendasi</p>
+                    <p className="font-semibold mb-2" style={{ color:"var(--text)" }}>{DIM[weakDim]}</p>
+                    <p className="text-sm leading-relaxed mb-4" style={{ color:"var(--text2)" }}>{TIPS[weakDim]}</p>
+                    <Link href="/practice/agent"
+                      className="flex items-center justify-between px-4 py-3 rounded-xl border transition-all group hover:opacity-90"
+                      style={{ background:"rgba(245,158,11,0.08)", borderColor:"rgba(245,158,11,0.25)", color:"var(--warn)" }}>
+                      <span className="text-sm font-medium">Latihan fokus</span>
+                      <Icon.Arrow width={14} height={14} className="group-hover:translate-x-0.5 transition-transform" />
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="flex-1 rounded-2xl p-6 flex items-center justify-center" style={card}>
+                    <p className="text-sm text-center" style={{ color:"var(--text3)" }}>
+                      Selesaikan sesi untuk melihat rekomendasi.
+                    </p>
+                  </div>
+                )}
+                <div className="rounded-2xl p-5" style={card}>
+                  <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color:"var(--text3)" }}>Menit latihan</p>
+                  <p className="text-3xl font-bold" style={{ color:"var(--text)" }}>
+                    {Math.round(stats?.total_minutes??0)}
+                    <span className="text-base font-normal ml-1" style={{ color:"var(--text3)" }}>mnt</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── History ── */}
+            <div className="rounded-2xl overflow-hidden" style={card}>
+              <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor:"var(--border)" }}>
+                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color:"var(--text3)" }}>Riwayat latihan</p>
+                <span className="text-xs" style={{ color:"var(--text3)" }}>{sessions.length} sesi</span>
+              </div>
+              {sessions.length === 0 ? (
+                <div className="py-14 text-center">
+                  <p className="text-sm mb-4" style={{ color:"var(--text3)" }}>Belum ada sesi latihan.</p>
+                  <Link href="/practice"
+                    className="inline-flex items-center gap-2 text-sm font-medium transition-colors"
+                    style={{ color:"var(--accent)" }}>
+                    Mulai latihan pertama <Icon.Arrow width={12} height={12} />
+                  </Link>
+                </div>
+              ) : (
+                <div>
+                  {sessions.map(s => {
+                    const col  = scoreCol(s.score_overall);
+                    const date = new Date(s.created_at);
+                    return (
+                      <div key={s.id}
+                        className="flex items-center gap-4 px-6 py-4 border-b last:border-0 transition-colors"
+                        style={{ borderColor:"var(--border)" }}
+                        onMouseEnter={e=>(e.currentTarget.style.background="var(--surface2)")}
+                        onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0"
+                          style={{ background:`${col}14`, color:col }}>
+                          {s.score_overall.toFixed(1)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color:"var(--text)" }}>{s.scenario}</p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <div className="w-20 h-1.5 rounded-full" style={{ background:"var(--border2)" }}>
+                              <div className="h-full rounded-full" style={{ width:`${toP(s.score_overall)}%`, background:col }} />
+                            </div>
+                            <span className="text-xs font-medium" style={{ color:col }}>{cefrKey(s.score_overall)}</span>
+                          </div>
+                        </div>
+                        <span className="text-xs whitespace-nowrap flex-shrink-0" style={{ color:"var(--text3)" }}>
+                          {isNaN(date.getTime()) ? "—" : fmt.format(date)}
+                        </span>
                       </div>
                     );
                   })}
                 </div>
-              ) : (
-                <p className="text-gray-500">No recent practice sessions</p>
               )}
             </div>
           </>
         )}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
-

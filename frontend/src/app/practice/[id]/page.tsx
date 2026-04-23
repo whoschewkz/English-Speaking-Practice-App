@@ -1,805 +1,664 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AudioProcessor, requestMicrophone, DEFAULT_AUDIO_CONFIG } from "@/utils/audioProcessor";
+import { authFetch, authFetchForm, TokenStore } from "@/utils/auth";
+import { useTheme, Icon } from "@/components/shared";
 
-// Types
-type Role = "system" | "user" | "assistant";
-type Msg = { role: Role; content: string };
+type Role = "system"|"user"|"assistant";
+type Msg  = { role:Role; content:string };
+type ScoreBlock = { range:number; accuracy:number; fluency:number; coherence:number; phonology:number; overall:number };
+type Scores = ScoreBlock & { comment:string };
+type Descriptors = Partial<{ range:string; accuracy:string; fluency:string; coherence:string; phonology:string }>;
+type ObjMetrics  = Partial<{ total_words:number; unique_words:number; type_token_ratio:number; filler_per_100w:number; speech_rate_wpm:number|null; avg_sentence_len:number }>;
+type ReflectOut  = { summary:string; error_patterns:{tag:string;description:string}[]; vocab_targets:{topic:string;items:string[]}[]; objectives_next:string[] };
+type PlanOut     = { scenario:string; level:number; objectives:string[]; rubric:string[]; starter_turns:string[]; target_time_min:number };
 
-type ScoreBlock = {
-  pronunciation: number;
-  grammar: number;
-  fluency: number;
-  vocabulary: number;
-  overall: number;
-  coherence?: number; // optional dari backend
-};
-
-type Scores = ScoreBlock & { comment: string };
-
-type Descriptors = Partial<{
-  pronunciation: string;
-  grammar: string;
-  fluency: string;
-  vocabulary: string;
-  coherence: string;
-}>;
-
-type ObjectiveMetrics = Partial<{
-  total_words: number;
-  unique_words: number;
-  type_token_ratio: number; // %
-  avg_sentence_len: number;
-  filler_per_100w: number;
-  mean_utterance_len: number;
-  speech_rate_wpm: number | null;
-}>;
-
-type ReflectOut = {
-  summary: string;
-  error_patterns: { tag: string; description: string; examples?: string[]; weight?: number }[];
-  vocab_targets: { topic: string; items: string[] }[];
-  objectives_next: string[];
-};
-
-type PlanGenOut = {
-  scenario: string;
-  level: number;
-  objectives: string[];
-  rubric: string[];
-  starter_turns: string[];
-  target_time_min: number;
-};
-
-// Helpers
-const mapScenarioTitle = (id: string) =>
-  id === "1" ? "Job Interview"
-    : id === "2" ? "Daily Conversation"
-    : id === "3" ? "Business Meeting"
-    : id === "4" ? "Travel Situations"
-    : id === "agent" ? "My Plan (Agent)"
-    : "Custom Scenario";
-
-const mapOpeningPrompt = (id: string) =>
-  id === "1" ? "Hello! I'm your AI speaking partner. What position are you interviewing for today?"
-    : id === "2" ? "Hi! Let's practice daily conversation. How's your day so far?"
-    : id === "3" ? "Welcome to the meeting. Could you share your project update?"
-    : id === "4" ? "You're at the airport check-in. May I see your passport, please?"
-    : "Hi! Describe the custom scenario you'd like to practice.";
-
-const Icon = {
-  Mic: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" {...props}>
-      <rect x="9" y="2" width="6" height="12" rx="3" /><path d="M12 14v6" /><path d="M8 10v2a4 4 0 0 0 8 0v-2" /><path d="M5 20h14" />
-    </svg>
-  ),
-  Stop: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
-  ),
-  Sparkle: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" {...props}>
-      <path d="M12 3l1.5 3.5L17 8l-3.5 1.5L12 13l-1.5-3.5L7 8l3.5-1.5L12 3z" />
-      <path d="M19 15l.8 1.8L22 17l-1.8.8L19 20l-.8-1.2L16 17l2.2-.2L19 15z" />
-      <path d="M4 14l.7 1.6L6 16l-1.3.4L4 18l-.7-1.1L2 16l1.3-.1L4 14z" />
-    </svg>
-  ),
-  Robot: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" {...props}>
-      <rect x="4" y="7" width="16" height="12" rx="2" /><path d="M12 3v4" /><circle cx="9" cy="12" r="1" /><circle cx="15" cy="12" r="1" />
-    </svg>
-  ),
-  ArrowRight: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" {...props}>
-      <path d="M5 12h14" /><path d="M12 5l7 7-7 7" />
-    </svg>
-  ),
-};
-
-// Heuristic tip
-function tipFromUserInput(text: string): string {
-  const t = (text || "").toLowerCase();
-  if (!t.trim()) return "Keep answers concise and clear.";
-  if (/\b(uh|um|like|you know)\b/.test(t)) return "Reduce filler words (um, uh, like). Pause briefly instead.";
-  const words = t.split(/\s+/).filter(Boolean);
-  if (words.length > 30) return "Use shorter sentences to improve clarity.";
-  if (/\b(i\s*am\s*not|don't|doesn't|didn't)\b/.test(t) && !/[.?!)]$/.test(t)) return "Finish sentences with clear punctuation when writing.";
-  if (/\bvery\b/.test(t)) return "Try stronger adjectives instead of 'very' (e.g., 'excellent' instead of 'very good').";
-  return "Aim for natural rhythm—speak in thought groups.";
+function cefrKey(s:number){ if(s>=4.5)return"C1+"; if(s>=3.5)return"B2"; if(s>=2.5)return"B1"; if(s>=1.5)return"A2"; return"A1"; }
+function clip(n:any):number{ const v=Number(n); return !Number.isFinite(v)?3:Math.max(1,Math.min(5,v)); }
+function toP(s:number){ return Math.max(0,Math.min(100,((s-1)/4)*100)); }
+function scoreCol(s:number){ return s>=3.5?"var(--accent)":s>=2.5?"var(--warn)":"var(--danger)"; }
+function tipMsg(text:string){
+  const t=text.toLowerCase();
+  if(/\b(uh|um|like|you know)\b/.test(t)) return"Kurangi filler words — berhenti sejenak lebih alami.";
+  if(t.split(/\s+/).length>30) return"Kalimat panjang — coba pisah menjadi kalimat lebih pendek.";
+  if(/\bvery\b/.test(t)) return"Ganti 'very' dengan kata sifat yang lebih kuat.";
+  return"Bagus! Terus pertahankan ritme berbicara.";
 }
 
-export default function PracticeSessionPage({ params }: { params: { id: string } }) {
-  const { id } = params;
-  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
+const mapTitle = (id:string) =>
+  id==="1"?"Job Interview":id==="2"?"Daily Conversation":id==="3"?"Business Meeting":
+  id==="4"?"Travel Situations":id==="agent"?"Rencana Latihan AI":"Skenario Khusus";
+const mapOpen  = (id:string) =>
+  id==="1"?"Hello! What position are you interviewing for today?":
+  id==="2"?"Hi! Let's practice daily conversation. How's your day?":
+  id==="3"?"Welcome to the meeting. Could you share your project update?":
+  id==="4"?"You're at the airport check-in. May I see your passport, please?":
+  "Hi! Let's begin. What would you like to practice today?";
 
-  // conversation
-  const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [aiThinking, setAiThinking] = useState(false);
+const DIM:Record<string,string> = { range:"Kosakata", accuracy:"Tata Bahasa", fluency:"Kelancaran", coherence:"Koherensi", phonology:"Pelafalan" };
 
-  // agent
-  const isAgentMode = id === "agent";
-  const [agentScenario, setAgentScenario] = useState<string>("");
-  const [agentLevel, setAgentLevel] = useState<number | null>(null);
-  const [currentItemId, setCurrentItemId] = useState<number | null>(null);
-
-  // feedback
-  const [feedbackLoading, setFeedbackLoading] = useState(false);
-  const [finalFeedback, setFinalFeedback] = useState<Scores | null>(null);
-  const [finalFeedbackRaw, setFinalFeedbackRaw] = useState<string>("");
-
-  // NEW: show descriptors & objective metrics
-  const [descriptors, setDescriptors] = useState<Descriptors | null>(null);
-  const [objective, setObjective] = useState<ObjectiveMetrics | null>(null);
-  const [standards, setStandards] = useState<{ rubric?: string; notes?: string } | null>(null);
-
-  // reflection & plan (optional, AFTER end)
-  const [reflectLoading, setReflectLoading] = useState(false);
-  const [reflectData, setReflectData] = useState<ReflectOut | null>(null);
-  const [planLoading, setPlanLoading] = useState(false);
-  const [planData, setPlanData] = useState<PlanGenOut | null>(null);
-
-  // session truly ended flag
-  const [sessionEnded, setSessionEnded] = useState(false);
-
-  // recorder
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<BlobPart[]>([]);
-  const currentStreamRef = useRef<MediaStream | null>(null);
-
-  // session timing
-  const [sessionStartAt, setSessionStartAt] = useState<number | null>(null);
-
-  // refs
-  const chatRef = useRef<HTMLDivElement | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  // formatter
-  const fmt = useMemo(
-    () => new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }),
-    []
-  );
-
-  const speak = (text: string) => {
-    try {
-      const synth = window.speechSynthesis;
-      if (!synth) return;
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "en-US"; u.rate = 1;
-      synth.cancel(); synth.speak(u);
-    } catch {}
-  };
-
-  useEffect(() => () => { try { window.speechSynthesis?.cancel(); } catch {} }, []);
-
-  // Auto-scroll
-  useEffect(() => {
-    if (!chatRef.current) return;
-    requestAnimationFrame(() => chatRef.current!.scrollTo({ top: chatRef.current!.scrollHeight, behavior: "smooth" }));
-  }, [messages.length]);
-
-  // Space toggles recording (disabled after end)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code !== "Space" || sessionEnded) return;
-      const tag = (document.activeElement?.tagName || "").toLowerCase();
-      if (["input", "textarea", "button"].includes(tag)) return;
-      e.preventDefault();
-      if (aiThinking || feedbackLoading) return;
-      if (!isRecording) startRecording(); else stopRecording();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isRecording, aiThinking, feedbackLoading, sessionEnded]);
-
-  // INIT
-  useEffect(() => {
-    let alive = true;
-    return () => { alive = false; };
-  }, []);
-  useEffect(() => {
-    let alive = true;
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    (async () => {
-      setSessionStartAt(Date.now());
-      if (isAgentMode) {
-        try {
-          const r = await fetch(`${API_BASE}/api/agent/next`, { signal: ctrl.signal });
-          if (!r.ok) throw new Error(await r.text());
-          const data = await r.json();
-          if (!alive) return;
-          setAgentScenario(data.scenario || "Personalized Task");
-          setAgentLevel(Number.isFinite(data.level) ? data.level : null);
-          setCurrentItemId(data.item_id ?? null);
-          setMessages([{ role: "assistant", content: data.prompt || "Let's begin. Tell me about your day." }]);
-        } catch {
-          if (!alive) return;
-          setAgentScenario("Personalized Practice");
-          setAgentLevel(2);
-          setMessages([{ role: "assistant", content: "Hi! Let's practice daily conversation. How's your day so far?" }]);
-        }
-      } else {
-        setAgentScenario("");
-        setAgentLevel(null);
-        setMessages([{ role: "assistant", content: mapOpeningPrompt(id) }]);
-      }
-    })();
-    return () => { alive = false; ctrl.abort(); };
-  }, [API_BASE, id, isAgentMode]);
-
-  // Recording
-  const startRecording = async () => {
-    if (sessionEnded || isRecording || aiThinking || feedbackLoading) return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      currentStreamRef.current = stream;
-      const supportWebm = typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm");
-      const options: MediaRecorderOptions = supportWebm ? { mimeType: "audio/webm" } : { mimeType: "audio/mp4" };
-      const mr = new MediaRecorder(stream, options);
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: mr.mimeType });
-        chunksRef.current = [];
-        stream.getTracks().forEach((t) => t.stop()); currentStreamRef.current = null;
-        await handleTranscribe(blob);
-      };
-      mediaRecorderRef.current = mr; mr.start(); setIsRecording(true);
-    } catch {
-      alert("Microphone permission denied or unsupported browser.");
-    }
-  };
-  const stopRecording = () => {
-    const mr = mediaRecorderRef.current; if (!mr) return;
-    if (mr.state !== "inactive") mr.stop(); setIsRecording(false);
-  };
-  const hardStopRecording = () => {
-    try {
-      const mr = mediaRecorderRef.current;
-      if (mr && mr.state !== "inactive") mr.stop();
-    } catch {}
-    try { currentStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
-    setIsRecording(false);
-  };
-
-  // Transcription
-  const handleTranscribe = async (audioBlob: Blob) => {
-    if (sessionEnded) return;
-    const fd = new FormData();
-    fd.append("audio", audioBlob, `speech.${audioBlob.type.includes("webm") ? "webm" : "mp4"}`);
-    fd.append("language", "en");
-    try {
-      const resp = await fetch(`${API_BASE}/api/transcribe`, { method: "POST", body: fd, signal: abortRef.current?.signal });
-      if (!resp.ok) throw new Error(await resp.text());
-      const data = await resp.json();
-      const text = data?.text || "";
-      setTranscript(text);
-      if (text) await sendToAI(text);
-    } catch {
-      setTranscript("");
-      setMessages((prev) => [...prev, { role: "assistant", content: "Sorry, transcription failed. Please try again." }]);
-    }
-  };
-
-  // Chat
-  const sendToAI = async (userText: string) => {
-    if (sessionEnded) return;
-    const newMessages: Msg[] = [...messages, { role: "user", content: userText }];
-    setMessages(newMessages);
-    setAiThinking(true);
-    try {
-      const resp = await fetch(`${API_BASE}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scenarioId: isAgentMode ? "agent" : id, messages: newMessages }),
-        signal: abortRef.current?.signal,
-      });
-      if (!resp.ok) throw new Error(await resp.text());
-      const data = await resp.json();
-      const content = data?.content || "I could not generate a reply.";
-      const tip = tipFromUserInput(userText);
-      const contentWithTip = `${content}\n\nTip: ${tip}`;
-      setMessages((prev) => [...prev, { role: "assistant", content: contentWithTip }]);
-      speak(content);
-    } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "There was an error contacting the server." }]);
-    } finally {
-      setAiThinking(false);
-      setTranscript("");
-    }
-  };
-
-  // End Session (ONLY feedback + save + mark complete)
-  const handleEndSession = async () => {
-    if (sessionEnded || aiThinking || isRecording || feedbackLoading) return;
-
-    // stop everything
-    window.speechSynthesis?.cancel();
-    hardStopRecording();
-
-    setFeedbackLoading(true);
-    setFinalFeedback(null); setFinalFeedbackRaw("");
-    setDescriptors(null); setObjective(null); setStandards(null);
-    // reset optional sections
-    setReflectData(null); setPlanData(null);
-    setReflectLoading(false); setPlanLoading(false);
-
-    const duration_min = (() => {
-      if (!sessionStartAt) return 0;
-      const ms = Date.now() - sessionStartAt;
-      return Math.max(0, Math.round((ms / 1000 / 60) * 100) / 100);
-    })();
-
-    try {
-      // 1) feedback (now sends duration_min)
-      const fb = await fetch(`${API_BASE}/api/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages, duration_min }),
-        signal: abortRef.current?.signal,
-      });
-      const fbJson = await fb.json();
-
-      // Parse structured feedback
-      if (fbJson?.scores) {
-        const s = fbJson.scores as ScoreBlock;
-        const safe = (n: any) => Math.max(0, Math.min(10, Number(n) || 0));
-        const scored: Scores = {
-          pronunciation: safe(s.pronunciation),
-          grammar: safe(s.grammar),
-          fluency: safe(s.fluency),
-          vocabulary: safe(s.vocabulary),
-          overall: s.overall !== undefined
-            ? safe(s.overall)
-            : (safe(s.pronunciation) + safe(s.grammar) + safe(s.fluency) + safe(s.vocabulary)) / 4,
-          coherence: s.coherence !== undefined ? safe(s.coherence) : undefined,
-          comment: (fbJson.comment || "").toString(),
-        };
-        setFinalFeedback(scored);
-
-        if (fbJson.descriptors) setDescriptors(fbJson.descriptors as Descriptors);
-        if (fbJson.objective_metrics) setObjective(fbJson.objective_metrics as ObjectiveMetrics);
-        if (fbJson.standards) setStandards(fbJson.standards as { rubric?: string; notes?: string });
-      } else {
-        setFinalFeedbackRaw(fbJson?.assessment || fbJson?.content || "No feedback generated.");
-      }
-
-      // 2) save session
-      const scenarioName = isAgentMode ? agentScenario || "My Plan (Agent)" : mapScenarioTitle(id);
-      if (finalFeedback || fbJson?.scores) {
-        const s = (fbJson?.scores as ScoreBlock) || (finalFeedback as ScoreBlock);
-        await fetch(`${API_BASE}/api/sessions`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            scenario: scenarioName,
-            score_overall: s.overall,
-            score_pronunciation: s.pronunciation,
-            score_grammar: s.grammar,
-            score_fluency: s.fluency,
-            score_vocabulary: s.vocabulary,
-            comment: (fbJson?.comment || finalFeedback?.comment || ""),
-            duration_min,
-          }), signal: abortRef.current?.signal,
-        });
-      }
-
-      // 3) mark agent item complete
-      if (isAgentMode && currentItemId) {
-        await fetch(`${API_BASE}/api/agent/complete`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ item_id: currentItemId, done: true }),
-          signal: abortRef.current?.signal,
-        });
-      }
-
-      // 4) mark UI ended — recording/chat disabled, next step optional
-      setSessionEnded(true);
-    } catch {
-      setFinalFeedbackRaw("Error generating or saving feedback.");
-    } finally {
-      setFeedbackLoading(false);
-    }
-  };
-
-  // Optional: Reflection & Next Plan (triggered AFTER end session)
-  const handleReflectAndPlan = async () => {
-    if (!sessionEnded || reflectLoading || planLoading) return;
-    setReflectData(null); setPlanData(null);
-
-    let rj: ReflectOut | null = null;
-
-    try {
-      setReflectLoading(true);
-      const r = await fetch(`${API_BASE}/api/agent/reflect`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages,
-          feedback: finalFeedback ? { scores: finalFeedback, comment: finalFeedback.comment } : null,
-          user_id: 1, // single-user
-        }),
-        signal: abortRef.current?.signal,
-      });
-      if (!r.ok) throw new Error(await r.text());
-      rj = await r.json();
-      setReflectData(rj);
-    } catch (e) {
-      rj = {
-        summary: "Reflection failed to generate.",
-        error_patterns: [],
-        vocab_targets: [],
-        objectives_next: [],
-      };
-      setReflectData(rj);
-    } finally {
-      setReflectLoading(false);
-    }
-
-    try {
-      setPlanLoading(true);
-      const p = await fetch(`${API_BASE}/api/agent/plan`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: 1,
-          error_patterns: rj?.error_patterns || [],
-          objectives_next: rj?.objectives_next || [],
-          vocab_targets: rj?.vocab_targets || [],
-        }),
-        signal: abortRef.current?.signal,
-      });
-      if (!p.ok) throw new Error(await p.text());
-      const pj: PlanGenOut = await p.json();
-      setPlanData(pj);
-    } catch {
-      setPlanData(null);
-    } finally {
-      setPlanLoading(false);
-    }
-  };
-
-  // helper to start the next session in-place
-  const startNextSession = (starter?: string) => {
-    try { window.speechSynthesis?.cancel(); } catch {}
-    try { currentStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
-    setIsRecording(false);
-
-    if (isAgentMode && planData?.scenario) {
-      setAgentScenario(planData.scenario);
-    }
-
-    setSessionEnded(false);
-    setFinalFeedback(null);
-    setFinalFeedbackRaw("");
-    setDescriptors(null);
-    setObjective(null);
-    setStandards(null);
-    setReflectData(null);
-    setPlanData(null);
-    setReflectLoading(false);
-    setPlanLoading(false);
-    setTranscript("");
-    setSessionStartAt(Date.now());
-
-    const opening =
-      starter ||
-      (isAgentMode
-        ? "Let's continue with your personalized practice. Ready?"
-        : mapOpeningPrompt(id));
-
-    setMessages([{ role: "assistant", content: opening }]);
-  };
-
-  // cleanup mic stream
-  useEffect(() => () => { try { currentStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch {} }, []);
-
-  const ScoreBar = ({ label, value }: { label: string; value: number }) => (
-    <div className="mb-3">
-      <div className="flex justify-between mb-1">
-        <span className="font-medium">{label}</span>
-        <span className="text-blue-600 font-semibold">{Number.isFinite(value) ? value.toFixed(1) : "0.0"}/10</span>
+function ScoreBar({ label, value, highlight=false }:{ label:string; value:number; highlight?:boolean }) {
+  const col = highlight ? "var(--accent)" : scoreCol(value);
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-1.5">
+        <span className="text-sm" style={{ color:"var(--text2)", fontWeight: highlight ? 600 : 400 }}>{label}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold" style={{ color:col }}>{value.toFixed(1)}/5</span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-semibold border"
+            style={{ color:col, background:`${col}10`, borderColor:`${col}25` }}>
+            {cefrKey(value)}
+          </span>
+        </div>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2" role="progressbar" aria-valuemin={0} aria-valuemax={10} aria-valuenow={Math.max(0, Math.min(10, value))}>
-        <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${Math.max(0, Math.min(100, (Number.isFinite(value) ? value : 0) * 10))}%` }} />
+      <div className="h-1.5 rounded-full" style={{ background:"var(--border2)" }}>
+        <div className="h-full rounded-full transition-all duration-700" style={{ width:`${toP(value)}%`, background:col }} />
       </div>
     </div>
   );
+}
 
-  const headingTitle = isAgentMode ? agentScenario || "My Plan (Agent)" : mapScenarioTitle(id);
+export default function PracticeSessionPage({ params }:{ params:{ id:string } }) {
+  const { id }   = params;
+  const API      = (process.env.NEXT_PUBLIC_API_BASE_URL||"http://localhost:8000").replace(/\/+$/,"");
+  const isAgent  = id==="agent";
+  const { dark } = useTheme();
+
+  const [msgs,         setMsgs]         = useState<Msg[]>([]);
+  const [isRec,        setIsRec]        = useState(false);
+  const [transcript,   setTranscript]   = useState("");
+  const [recError,     setRecError]     = useState<string|null>(null);
+  const [thinking,     setThinking]     = useState(false);
+  const [agentTitle,   setAgentTitle]   = useState("");
+  const [agentLevel,   setAgentLevel]   = useState<number|null>(null);
+  const [itemId,       setItemId]       = useState<number|null>(null);
+  const [fbLoading,    setFbLoading]    = useState(false);
+  const [feedback,     setFeedback]     = useState<Scores|null>(null);
+  const [fbRaw,        setFbRaw]        = useState("");
+  const [descriptors,  setDescriptors]  = useState<Descriptors|null>(null);
+  const [objective,    setObjective]    = useState<ObjMetrics|null>(null);
+  const [reflectLoad,  setReflectLoad]  = useState(false);
+  const [reflectData,  setReflectData]  = useState<ReflectOut|null>(null);
+  const [planLoad,     setPlanLoad]     = useState(false);
+  const [planData,     setPlanData]     = useState<PlanOut|null>(null);
+  const [ended,        setEnded]        = useState(false);
+  const [mounted,      setMounted]      = useState(false);
+  const [startAt,      setStartAt]      = useState<number|null>(null);
+  const [elapsedTime,  setElapsedTime]  = useState("0:00");
+
+  const audioRef  = useRef<AudioProcessor|null>(null);
+  const streamRef = useRef<MediaStream|null>(null);
+  const chatRef   = useRef<HTMLDivElement>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
+  const abortRef  = useRef<AbortController|null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    if (!TokenStore.isLoggedIn()) { window.location.href="/auth"; return; }
+  }, []);
+
+  useEffect(() => { return () => { try { window.speechSynthesis?.cancel(); } catch {} }; }, []);
+
+  useEffect(() => {
+    if (!chatRef.current) return;
+    requestAnimationFrame(() => chatRef.current?.scrollTo({ top:chatRef.current.scrollHeight, behavior:"smooth" }));
+  }, [msgs.length]);
+
+  useEffect(() => {
+    if (!feedbackRef.current || !feedback) return;
+    requestAnimationFrame(() => feedbackRef.current?.scrollIntoView({ behavior:"smooth", block:"start" }));
+  }, [feedback]);
+
+  useEffect(() => {
+    if (!startAt || ended) return;
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startAt) / 1000);
+      const mins = Math.floor(elapsed / 60);
+      const secs = elapsed % 60;
+      setElapsedTime(`${mins}:${secs.toString().padStart(2, '0')}`);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startAt, ended]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    let alive=true;
+    const ctrl=new AbortController();
+    abortRef.current=ctrl;
+    setStartAt(Date.now());
+    (async () => {
+      if (isAgent) {
+        try {
+          const r=await authFetch(`${API}/api/agent/next`);
+          if (!r.ok) throw new Error();
+          const d=await r.json();
+          if (!alive) return;
+          setAgentTitle(d.scenario||"Latihan Personal");
+          setAgentLevel(Number.isFinite(d.level)?d.level:null);
+          setItemId(d.item_id??null);
+          setMsgs([{role:"assistant",content:d.prompt||"Let's begin!"}]);
+        } catch {
+          if (!alive) return;
+          setAgentTitle("Latihan Personal"); setAgentLevel(2);
+          setMsgs([{role:"assistant",content:"Hi! Let's practice speaking English. Tell me about yourself."}]);
+        }
+      } else {
+        setMsgs([{role:"assistant",content:mapOpen(id)}]);
+      }
+    })();
+    return () => { alive=false; ctrl.abort(); };
+  }, [mounted, API, id, isAgent]);
+
+  useEffect(() => {
+    const onKey=(e:KeyboardEvent)=>{
+      if (e.code!=="Space"||ended) return;
+      const tag=(document.activeElement?.tagName||"").toLowerCase();
+      if (["input","textarea","button"].includes(tag)) return;
+      e.preventDefault();
+      if (thinking||fbLoading) return;
+      isRec ? stopRec() : startRec();
+    };
+    window.addEventListener("keydown",onKey);
+    return ()=>window.removeEventListener("keydown",onKey);
+  }, [isRec,thinking,fbLoading,ended]);
+
+  const startRec=async()=>{
+    if (ended||isRec||thinking||fbLoading) return;
+    setRecError(null);
+    try {
+      const stream=await requestMicrophone(DEFAULT_AUDIO_CONFIG);
+      streamRef.current=stream;
+      audioRef.current=new AudioProcessor(DEFAULT_AUDIO_CONFIG);
+      await audioRef.current.startRecording(stream);
+      setIsRec(true);
+    } catch(e){ setRecError(`Mikrofon error: ${(e as Error).message}`); }
+  };
+
+  const stopRec=async()=>{
+    if (!audioRef.current) return;
+    setIsRec(false);
+    try {
+      const blob=await audioRef.current.stopRecording();
+      audioRef.current.cleanup(); audioRef.current=null; streamRef.current=null;
+      await doTranscribe(blob);
+    } catch { setMsgs(p=>[...p,{role:"assistant",content:"Audio error. Coba lagi."}]); }
+  };
+
+  const hardStop=()=>{
+    try { audioRef.current?.cleanup(); audioRef.current=null; } catch {}
+    try { streamRef.current?.getTracks().forEach(t=>t.stop()); streamRef.current=null; } catch {}
+    setIsRec(false);
+    setRecError(null);
+  };
+
+  const doTranscribe=async(blob:Blob)=>{
+    if (ended) return;
+    const fd=new FormData();
+    fd.append("audio",blob,"speech.wav"); fd.append("language","en");
+    try {
+      const r=await authFetchForm(`${API}/api/transcribe`,fd);
+      if (!r.ok) throw new Error(await r.text());
+      const d=await r.json();
+      const t=d?.text||"";
+      setTranscript(t);
+      if (t) await sendToAI(t);
+      else setMsgs(p=>[...p,{role:"assistant",content:"Suara tidak terdengar jelas. Coba lagi."}]);
+    } catch { setMsgs(p=>[...p,{role:"assistant",content:"Transcription gagal. Coba lagi."}]); }
+  };
+
+  const sendToAI=async(userText:string)=>{
+    if (ended) return;
+    const newMsgs:Msg[]=[...msgs,{role:"user",content:userText}];
+    setMsgs(newMsgs); setThinking(true);
+    try {
+      const r=await authFetch(`${API}/api/chat`,{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({scenarioId:isAgent?"agent":id, messages:newMsgs}),
+      });
+      if (!r.ok) throw new Error();
+      const d=await r.json();
+      const content=d?.content||"Could not generate a reply.";
+      setMsgs(p=>[...p,{role:"assistant",content:`${content}\n\n💡 ${tipMsg(userText)}`}]);
+      try { const u=new SpeechSynthesisUtterance(content); u.lang="en-US"; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch {}
+    } catch { setMsgs(p=>[...p,{role:"assistant",content:"Server error. Coba lagi."}]); }
+    finally { setThinking(false); setTranscript(""); }
+  };
+
+  const endSession=async()=>{
+    if (ended||thinking||isRec||fbLoading) return;
+    window.speechSynthesis?.cancel(); hardStop();
+    setFbLoading(true); setFeedback(null); setFbRaw(""); setDescriptors(null); setObjective(null); setRecError(null);
+    const dur=startAt?Math.max(0,Math.round(((Date.now()-startAt)/60000)*100)/100):0;
+    try {
+      const fb=await authFetch(`${API}/api/feedback`,{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({messages:msgs,duration_min:dur}),
+      });
+      const fbJson=await fb.json();
+      if (fbJson?.scores) {
+        const s=fbJson.scores as ScoreBlock;
+        const scored:Scores={
+          range:clip(s.range), accuracy:clip(s.accuracy), fluency:clip(s.fluency),
+          coherence:clip(s.coherence), phonology:clip(s.phonology),
+          overall:s.overall!==undefined?clip(s.overall):clip((clip(s.range)+clip(s.accuracy)+clip(s.fluency)+clip(s.coherence)+clip(s.phonology))/5),
+          comment:fbJson.comment||"",
+        };
+        setFeedback(scored);
+        if (fbJson.descriptors)       setDescriptors(fbJson.descriptors);
+        if (fbJson.objective_metrics) setObjective(fbJson.objective_metrics);
+        await authFetch(`${API}/api/sessions`,{
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({
+            scenario:isAgent?agentTitle||"AI Plan":mapTitle(id),
+            score_range:clip(s.range), score_accuracy:clip(s.accuracy),
+            score_fluency:clip(s.fluency), score_coherence:clip(s.coherence),
+            score_phonology:clip(s.phonology), comment:fbJson.comment||"", duration_min:dur,
+          }),
+        });
+      } else { setFbRaw(fbJson?.content||"Tidak ada feedback yang dihasilkan."); }
+      if (isAgent&&itemId) await authFetch(`${API}/api/agent/complete`,{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({item_id:itemId,done:true}),
+      });
+      setEnded(true);
+    } catch { setFbRaw("Terjadi kesalahan saat memuat feedback."); }
+    finally { setFbLoading(false); }
+  };
+
+  const doReflect=async()=>{
+    if (!ended||reflectLoad||planLoad) return;
+    setReflectData(null); setPlanData(null);
+    let rj:ReflectOut|null=null;
+    try {
+      setReflectLoad(true);
+      const r=await authFetch(`${API}/api/agent/reflect`,{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({messages:msgs, feedback:feedback||{}, user_id:1}),
+      });
+      rj=await r.json(); setReflectData(rj);
+    } catch { rj={summary:"Reflection gagal.",error_patterns:[],vocab_targets:[],objectives_next:[]}; setReflectData(rj); }
+    finally { setReflectLoad(false); }
+    try {
+      setPlanLoad(true);
+      const p=await authFetch(`${API}/api/agent/plan`,{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({user_id:1, error_patterns:rj?.error_patterns||[], objectives_next:rj?.objectives_next||[], vocab_targets:rj?.vocab_targets||[]}),
+      });
+      setPlanData(await p.json());
+    } catch { setPlanData(null); }
+    finally { setPlanLoad(false); }
+  };
+
+  const nextSession=(starter?:string)=>{
+    try { window.speechSynthesis?.cancel(); } catch {}
+    if (isAgent&&planData?.scenario) setAgentTitle(planData.scenario);
+    setEnded(false); setFeedback(null); setFbRaw(""); setDescriptors(null); setObjective(null);
+    setReflectData(null); setPlanData(null); setTranscript(""); setStartAt(Date.now());
+    setMsgs([{role:"assistant",content:starter||(isAgent?"Let's continue!":mapOpen(id))}]);
+  };
+
+  useEffect(()=>()=>{
+    try { streamRef.current?.getTracks().forEach(t=>t.stop()); } catch {}
+    try { audioRef.current?.cleanup(); } catch {}
+  },[]);
+
+  if (!mounted) return null;
+
+  const sessionTitle = isAgent ? agentTitle||"Rencana Latihan AI" : mapTitle(id);
+  const card = { background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"20px" };
+
+  const statusLabel = thinking?"AI menjawab…":isRec?"Mendengarkan…":ended?"Selesai":"Berlangsung";
+  const statusColor = thinking?"var(--warn)":isRec?"var(--danger)":ended?"var(--accent)":"var(--text3)";
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Top Bar */}
-      <div className="sticky top-0 z-10 bg-white/70 backdrop-blur border-b">
-        <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Icon.Robot className="h-5 w-5 text-violet-600" />
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Practice Session</h1>
-          </div>
-          <Link href="/practice" className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50 transition-colors" onClick={() => window.speechSynthesis?.cancel()}>
-            Back to Scenarios
+    <div style={{ minHeight:"100vh", background:"var(--bg)", display:"flex", flexDirection:"column" }}>
+      {/* ── Navbar ── */}
+      <header className="sticky top-0 z-40 backdrop-blur-xl border-b flex-shrink-0"
+        style={{ background: dark?"rgba(12,12,16,0.92)":"rgba(246,246,248,0.92)", borderColor:"var(--border)" }}>
+        <div className="max-w-5xl mx-auto px-5 h-14 flex items-center gap-4">
+          {/* Back */}
+          <Link href="/practice" className="flex items-center gap-1.5 text-sm transition-colors flex-shrink-0"
+            style={{ color:"var(--text3)" }}
+            onMouseEnter={e=>(e.currentTarget.style.color="var(--text)")}
+            onMouseLeave={e=>(e.currentTarget.style.color="var(--text3)")}>
+            <Icon.Back width={14} height={14} />
+            <span className="hidden sm:inline">Skenario</span>
           </Link>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        {/* Head */}
-        <section className="mb-6 rounded-2xl border bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">{headingTitle}</h2>
-              <p className="text-sm text-gray-500">{isAgentMode ? "Scenario from your learning plan" : "Selected scenario"}</p>
-            </div>
+          <div className="w-px h-4" style={{ background:"var(--border2)" }} />
+          {/* Logo */}
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background:"var(--accent)" }}>
+            <Icon.Mic width={13} height={13} style={{ stroke:"#0c0c10" }} />
+          </div>
+          {/* Title */}
+          <span className="text-sm font-semibold truncate max-w-48 sm:max-w-72" style={{ color:"var(--text)" }}>
+            {sessionTitle}
+          </span>
+          {isAgent&&agentLevel!==null&&(
+            <span className="text-xs px-2.5 py-1 rounded-full border hidden sm:inline"
+              style={{ color:"var(--text3)", borderColor:"var(--border2)", background:"var(--surface2)" }}>
+              Level {agentLevel}
+            </span>
+          )}
+          <div className="flex-1"/>
+          {/* Status */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-mono font-bold" style={{ color:"var(--text2)" }}>{elapsedTime}</span>
+            <div className="w-px h-4" style={{ background:"var(--border2)" }} />
             <div className="flex items-center gap-2">
-              {isAgentMode && agentLevel !== null && (<span className="px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">Level {agentLevel}</span>)}
-              <span className={`px-3 py-1 rounded-full text-sm ${
-                aiThinking ? "bg-blue-100 text-blue-800" : isRecording ? "bg-amber-100 text-amber-800" : sessionEnded ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-800"
-              }`}>
-                {aiThinking ? "AI Thinking…" : isRecording ? "Listening…" : sessionEnded ? "Ended" : "In Progress"}
-              </span>
+              <div className="w-1.5 h-1.5 rounded-full" style={{ background:statusColor, boxShadow:isRec?`0 0 5px var(--danger)`:undefined }} />
+              <span className="text-xs font-medium hidden sm:inline" style={{ color:statusColor }}>{statusLabel}</span>
             </div>
           </div>
-        </section>
+          {/* Theme */}
+          <button onClick={()=>{
+            const next=!dark;
+            document.documentElement.classList.toggle("dark",next);
+            localStorage.setItem("theme",next?"dark":"light");
+          }}
+            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+            style={{ color:"var(--text3)" }}>
+            {dark?<Icon.Sun width={15} height={15}/>:<Icon.Moon width={15} height={15}/>}
+          </button>
+        </div>
+      </header>
 
-        {/* Final assessment */}
-        {(finalFeedback || finalFeedbackRaw) && (
-          <section className="mb-6 rounded-2xl border bg-gradient-to-b from-gray-50 to-white p-6 shadow-sm">
-            <h3 className="font-semibold mb-3">Final Assessment</h3>
-            {finalFeedback ? (
-              <>
-                {"coherence" in finalFeedback && finalFeedback.coherence !== undefined && (
-                  <ScoreBar label="Coherence" value={finalFeedback.coherence!} />
-                )}
-                <ScoreBar label="Pronunciation" value={finalFeedback.pronunciation} />
-                <ScoreBar label="Grammar" value={finalFeedback.grammar} />
-                <ScoreBar label="Fluency" value={finalFeedback.fluency} />
-                <ScoreBar label="Vocabulary" value={finalFeedback.vocabulary} />
-                <div className="mt-3">
-                  <div className="flex justify-between mb-1">
-                    <span className="font-semibold">Overall</span>
-                    <span className="text-green-600 font-bold">{Number.isFinite(finalFeedback.overall) ? finalFeedback.overall.toFixed(1) : "0.0"}/10</span>
+      {/* ── Content ── */}
+      <div className="flex-1 max-w-5xl mx-auto w-full px-5 py-6 flex flex-col gap-5">
+
+        {/* ── Feedback ── */}
+        {(feedback||fbRaw) && (
+          <div ref={feedbackRef} className="rounded-[20px] overflow-hidden" style={card}>
+            <div className="px-7 py-5 border-b" style={{ borderColor:"var(--border)" }}>
+              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color:"var(--text3)" }}>
+                Hasil penilaian sesi
+              </p>
+            </div>
+            {feedback ? (
+              <div className="p-7">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    {(["range","accuracy","fluency","coherence","phonology"] as const).map(d=>(
+                      <ScoreBar key={d} label={DIM[d]} value={feedback[d]} />
+                    ))}
+                    <div className="pt-4 border-t" style={{ borderColor:"var(--border)" }}>
+                      <ScoreBar label="Overall" value={feedback.overall} highlight />
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2" role="progressbar" aria-valuemin={0} aria-valuemax={10} aria-valuenow={Math.max(0, Math.min(10, finalFeedback.overall))}>
-                    <div className="bg-green-600 h-2 rounded-full" style={{ width: `${Math.max(0, Math.min(100, (Number.isFinite(finalFeedback.overall) ? finalFeedback.overall : 0) * 10))}%` }} />
+                  <div className="space-y-5">
+                    {feedback.comment&&(
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color:"var(--text3)" }}>Komentar</p>
+                        <p className="text-sm leading-relaxed" style={{ color:"var(--text2)" }}>{feedback.comment}</p>
+                      </div>
+                    )}
+                    {descriptors&&(
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color:"var(--text3)" }}>Deskriptor CEFR</p>
+                        <div className="space-y-2">
+                          {(Object.entries(descriptors) as [string,string][]).map(([k,v])=>v&&(
+                            <p key={k} className="text-sm" style={{ color:"var(--text2)" }}>
+                              <span className="font-semibold" style={{ color:"var(--accent)" }}>{DIM[k]||k}: </span>
+                              {v}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {objective&&(
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color:"var(--text3)" }}>Metrik objektif</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          {[
+                            {k:"total_words",     l:"Total kata"},
+                            {k:"type_token_ratio",l:"Keragaman kata (%)"},
+                            {k:"filler_per_100w", l:"Filler/100 kata"},
+                            {k:"speech_rate_wpm", l:"Kecepatan (WPM)"},
+                          ].map(({k,l})=>{
+                            const v=objective[k as keyof ObjMetrics];
+                            if (v===undefined||v===null) return null;
+                            return (
+                              <div key={k} className="rounded-xl p-3" style={{ background:"var(--surface2)", border:"1px solid var(--border)" }}>
+                                <p className="text-xs mb-1" style={{ color:"var(--text3)" }}>{l}</p>
+                                <p className="font-bold" style={{ color:"var(--text)" }}>{typeof v==="number"?v.toFixed(1):"—"}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-                {finalFeedback.comment && <p className="text-gray-700 mt-4 whitespace-pre-line">{finalFeedback.comment}</p>}
-              </>
+              </div>
             ) : (
-              <p className="text-gray-700 whitespace-pre-line">{finalFeedbackRaw}</p>
+              <div className="p-7">
+                <p className="text-sm" style={{ color:"var(--text2)" }}>{fbRaw}</p>
+              </div>
             )}
-          </section>
+          </div>
         )}
 
-        {/* NEW: Analytic Descriptors */}
-        {descriptors && (
-          <section className="mb-6 rounded-2xl border bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold">Analytic Descriptors (CEFR-aligned)</h3>
-              {standards?.rubric && <span className="text-xs text-gray-500">{standards.rubric}</span>}
-            </div>
-            <ul className="space-y-2 text-sm text-gray-700">
-              {descriptors.coherence && <li><span className="font-semibold">Coherence:</span> {descriptors.coherence}</li>}
-              {descriptors.pronunciation && <li><span className="font-semibold">Pronunciation:</span> {descriptors.pronunciation}</li>}
-              {descriptors.grammar && <li><span className="font-semibold">Grammar:</span> {descriptors.grammar}</li>}
-              {descriptors.fluency && <li><span className="font-semibold">Fluency:</span> {descriptors.fluency}</li>}
-              {descriptors.vocabulary && <li><span className="font-semibold">Vocabulary:</span> {descriptors.vocabulary}</li>}
-            </ul>
-            {standards?.notes && <p className="mt-3 text-xs text-gray-500">{standards.notes}</p>}
-          </section>
-        )}
-
-        {/* NEW: Objective Metrics */}
-        {objective && (
-          <section className="mb-6 rounded-2xl border bg-white p-6 shadow-sm">
-            <h3 className="font-semibold mb-2">Objective Metrics</h3>
-            <div className="grid gap-2 sm:grid-cols-2 text-sm text-gray-700">
-              {"speech_rate_wpm" in objective && objective.speech_rate_wpm !== undefined && (
-                <div><span className="font-medium">Speech rate (WPM):</span> {objective.speech_rate_wpm ?? "—"}</div>
-              )}
-              {"type_token_ratio" in objective && (
-                <div><span className="font-medium">Type-Token Ratio:</span> {objective.type_token_ratio}%</div>
-              )}
-              {"filler_per_100w" in objective && (
-                <div><span className="font-medium">Filler / 100 words:</span> {objective.filler_per_100w}</div>
-              )}
-              {"avg_sentence_len" in objective && (
-                <div><span className="font-medium">Avg sentence length:</span> {objective.avg_sentence_len}</div>
-              )}
-              {"mean_utterance_len" in objective && (
-                <div><span className="font-medium">Mean utterance length:</span> {objective.mean_utterance_len}</div>
-              )}
-              {"total_words" in objective && (
-                <div><span className="font-medium">Total words:</span> {objective.total_words}</div>
-              )}
-              {"unique_words" in objective && (
-                <div><span className="font-medium">Unique words:</span> {objective.unique_words}</div>
-              )}
-            </div>
-            <p className="mt-3 text-xs text-gray-500">Note: Metrics dihitung dari transkrip ujaran pengguna dan durasi sesi.</p>
-          </section>
-        )}
-
-        {/* Session Reflection (optional, after end) */}
+        {/* ── Reflection ── */}
         {reflectData && (
-          <section className="mb-6 rounded-2xl border bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold">Session Reflection</h3>
-              {reflectLoading && <span className="text-xs text-blue-600">Updating…</span>}
-            </div>
-            {reflectData.summary && <p className="text-gray-700 mb-4">{reflectData.summary}</p>}
-            {reflectData.error_patterns?.length > 0 && (
-              <div className="mb-4">
-                <div className="text-sm font-medium mb-2">Key Error Patterns</div>
-                <div className="flex flex-wrap gap-2">
-                  {reflectData.error_patterns.map((e, i) => (
-                    <span key={i} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm">
-                      <span className="font-semibold">#{e.tag}</span>
-                      <span className="text-gray-600">{e.description}</span>
-                    </span>
-                  ))}
-                </div>
+          <div className="rounded-[20px] p-7" style={card}>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color:"var(--text3)" }}>Refleksi sesi</p>
+            {reflectData.summary&&<p className="text-sm leading-relaxed mb-4" style={{ color:"var(--text2)" }}>{reflectData.summary}</p>}
+            {reflectData.error_patterns.length>0&&(
+              <div className="flex flex-wrap gap-2 mb-4">
+                {reflectData.error_patterns.map((e,i)=>(
+                  <span key={i} className="text-xs px-3 py-1.5 rounded-xl border"
+                    style={{ color:"var(--danger)", background:"rgba(239,68,68,0.08)", borderColor:"rgba(239,68,68,0.2)" }}>
+                    #{e.tag} — {e.description}
+                  </span>
+                ))}
               </div>
             )}
-            {reflectData.vocab_targets?.length > 0 && (
+            {reflectData.vocab_targets.length>0&&(
               <div>
-                <div className="text-sm font-medium mb-2">Vocab Targets</div>
-                <ul className="list-disc list-inside text-sm text-gray-700">
-                  {reflectData.vocab_targets.flatMap((v, i) =>
-                    v.items.slice(0, 6).map((w, j) => <li key={`${i}-${j}`}>{w}</li>)
-                  )}
-                </ul>
+                <p className="text-xs uppercase tracking-wider mb-2" style={{ color:"var(--text3)" }}>Vocab targets</p>
+                <div className="flex flex-wrap gap-2">
+                  {reflectData.vocab_targets.flatMap(v=>v.items.slice(0,5).map((w,i)=>(
+                    <span key={i} className="text-xs px-2.5 py-1 rounded-lg border"
+                      style={{ color:"var(--accent)", background:"var(--accent-dim)", borderColor:"var(--accent-border)" }}>
+                      {w}
+                    </span>
+                  )))}
+                </div>
               </div>
             )}
-          </section>
+          </div>
         )}
 
-        {/* Next Session Plan (optional, after end) */}
+        {/* ── Next Plan ── */}
         {planData && (
-          <section className="mb-10 rounded-2xl border bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold">Next Session Plan</h3>
-              {planLoading && <span className="text-xs text-blue-600">Generating…</span>}
+          <div className="rounded-[20px] p-7" style={card}>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color:"var(--text3)" }}>Rencana sesi berikutnya</p>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {[planData.scenario, `Level ${planData.level}`, `${planData.target_time_min} menit`].map(t=>(
+                <span key={t} className="text-xs px-3 py-1.5 rounded-xl border"
+                  style={{ color:"var(--text2)", borderColor:"var(--border2)", background:"var(--surface2)" }}>
+                  {t}
+                </span>
+              ))}
             </div>
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              <span className="px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">{planData.scenario}</span>
-              <span className="px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">Level {planData.level}</span>
-              <span className="px-3 py-1 rounded-full text-sm bg-emerald-100 text-emerald-800">{planData.target_time_min} min</span>
-            </div>
-            {planData.objectives?.length > 0 && (
-              <>
-                <div className="text-sm font-medium mb-1">Objectives</div>
-                <ul className="list-disc list-inside text-sm text-gray-700 mb-4">
-                  {planData.objectives.map((o, i) => <li key={i}>{o}</li>)}
-                </ul>
-              </>
-            )}
-            {planData.rubric?.length > 0 && (
-              <>
-                <div className="text-sm font-medium mb-1">Rubric (self-check)</div>
-                <ul className="space-y-1 text-sm text-gray-700 mb-4">
-                  {planData.rubric.map((r, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-gray-300" />
-                      <span>{r}</span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            {planData.starter_turns?.length > 0 && (
-              <>
-                <div className="text-sm font-medium mb-1">Starter Turns</div>
-                <div className="flex flex-col gap-2">
-                  {planData.starter_turns.map((s, i) => (
-                    <button
-                      key={i}
-                      className="text-left rounded-xl border px-3 py-2 hover:bg-gray-50"
-                      onClick={() => startNextSession(s)}
-                      title="Use this to start next session"
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-4">
-                  <button
-                    className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-4"
-                    onClick={() => startNextSession(planData.starter_turns[0])}
-                    title="Start a new session right away"
-                  >
-                    Start Next Session Now
+            {planData.starter_turns.length>0&&(
+              <div className="space-y-2 mb-5">
+                <p className="text-xs uppercase tracking-wider mb-2" style={{ color:"var(--text3)" }}>Mulai dengan</p>
+                {planData.starter_turns.map((s,i)=>(
+                  <button key={i} onClick={()=>nextSession(s)}
+                    className="w-full text-left text-sm px-4 py-3 rounded-xl border transition-all"
+                    style={{ color:"var(--text2)", borderColor:"var(--border)", background:"var(--surface2)" }}
+                    onMouseEnter={e=>(e.currentTarget.style.borderColor="var(--accent-border)")}
+                    onMouseLeave={e=>(e.currentTarget.style.borderColor="var(--border)")}>
+                    {s}
                   </button>
-                </div>
-              </>
+                ))}
+              </div>
             )}
-          </section>
+            <button onClick={()=>nextSession(planData.starter_turns[0])}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 active:scale-95"
+              style={{ background:"var(--accent)", color:"#0c0c10" }}>
+              Mulai sesi berikutnya
+            </button>
+          </div>
         )}
 
-        {/* Conversation */}
-        <section className="mb-6 rounded-2xl border bg-white shadow-sm overflow-hidden">
-          <div className="bg-gray-50 p-4 border-b"><h3 className="font-medium">Conversation</h3></div>
-          <div ref={chatRef} className={`p-6 max-h-96 overflow-y-auto space-y-4 ${sessionEnded ? "opacity-90" : ""}`}>
-            {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`rounded-2xl px-4 py-3 max-w-[80%] text-sm leading-relaxed shadow-sm ${
-                  m.role === "user" ? "bg-gray-900 text-white rounded-br-sm" : "bg-blue-50 text-blue-900 rounded-bl-sm"
-                }`}>
+        {/* ── Chat ── */}
+        <div className="flex-1 rounded-[20px] overflow-hidden flex flex-col" style={{ ...card, minHeight:"360px" }}>
+          <div className="px-6 py-4 border-b flex-shrink-0" style={{ borderColor:"var(--border)" }}>
+            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color:"var(--text3)" }}>Percakapan</p>
+          </div>
+          <div ref={chatRef}
+            className="flex-1 overflow-y-auto p-6 space-y-4"
+            style={{ maxHeight:"420px", opacity:ended?0.7:1 }}>
+            {msgs.map((m,i)=>(
+              <div key={i} className={`flex ${m.role==="user"?"justify-end":"justify-start"}`}>
+                {m.role==="assistant" && (
+                  <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 mr-2.5 mt-0.5"
+                    style={{ background:"var(--accent)" }}>
+                    <Icon.Mic width={12} height={12} style={{ stroke:"#0c0c10" }} />
+                  </div>
+                )}
+                <div className={[
+                  "max-w-[78%] text-sm leading-relaxed px-4 py-3 whitespace-pre-wrap",
+                  m.role==="user"
+                    ? "rounded-2xl rounded-tr-sm border"
+                    : "rounded-2xl rounded-tl-sm border",
+                ].join(" ")}
+                  style={m.role==="user"
+                    ? { color:"var(--text)", background:"var(--surface2)", borderColor:"var(--border2)" }
+                    : { color:"var(--text)", background:"var(--accent-dim)", borderColor:"var(--accent-border)" }}>
                   {m.content}
                 </div>
               </div>
             ))}
+            {thinking && (
+              <div className="flex justify-start">
+                <div className="w-7 h-7 rounded-xl flex items-center justify-center mr-2.5" style={{ background:"var(--accent)" }}>
+                  <Icon.Mic width={12} height={12} style={{ stroke:"#0c0c10" }} />
+                </div>
+                <div className="px-4 py-3 rounded-2xl rounded-tl-sm border flex items-center gap-1.5"
+                  style={{ background:"var(--accent-dim)", borderColor:"var(--accent-border)" }}>
+                  {[0,1,2].map(i=>(
+                    <div key={i} className="w-1.5 h-1.5 rounded-full"
+                      style={{ background:"var(--accent)", animation:`bounce 1.2s ${i*0.2}s ease-in-out infinite` }} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </section>
+        </div>
 
-        {/* Controls */}
-        <section className="mb-6">
-          {!sessionEnded ? (
+        {/* ── Controls ── */}
+        <div className="flex-shrink-0 space-y-3 pb-6">
+          {recError && (
+            <div className="flex items-center justify-between gap-3 px-5 py-3 rounded-2xl border"
+              style={{ background:"rgba(239,68,68,0.06)", borderColor:"rgba(239,68,68,0.2)" }}>
+              <p className="text-sm" style={{ color:"var(--danger)" }}>{recError}</p>
+              <button onClick={()=>setRecError(null)}
+                className="text-xs px-3 py-1 rounded-lg transition-colors"
+                style={{ color:"var(--danger)", background:"rgba(239,68,68,0.1)" }}
+                onMouseEnter={e=>(e.currentTarget.style.background="rgba(239,68,68,0.15)")}
+                onMouseLeave={e=>(e.currentTarget.style.background="rgba(239,68,68,0.1)")}>
+                Tutup
+              </button>
+            </div>
+          )}
+          {!ended ? (
             <>
               <div className="flex gap-3">
-                {!isRecording ? (
-                  <button className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 shadow disabled:opacity-60"
-                    onClick={startRecording} disabled={aiThinking || feedbackLoading}>
-                    <Icon.Mic className="h-5 w-5" /> Start Speaking
+                {!isRec ? (
+                  <button onClick={startRec} disabled={thinking||fbLoading}
+                    className="flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-sm font-medium border transition-all active:scale-[0.98] disabled:opacity-40"
+                    style={{ color:"var(--text2)", background:"var(--surface)", borderColor:"var(--border2)" }}
+                    onMouseEnter={e=>{if(!thinking&&!fbLoading){e.currentTarget.style.borderColor="var(--accent)"; e.currentTarget.style.color="var(--accent)";} }}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border2)"; e.currentTarget.style.color="var(--text2)"; }}>
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background:"var(--accent)" }}>
+                      <Icon.Mic width={14} height={14} style={{ stroke:"#0c0c10" }} />
+                    </div>
+                    <span>Mulai berbicara</span>
+                    <span className="hidden sm:inline ml-auto text-xs" style={{ color:"var(--text3)" }}>Tekan Spasi</span>
                   </button>
                 ) : (
-                  <button className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white py-3 px-4 shadow"
-                    onClick={stopRecording}>
-                    <Icon.Stop className="h-5 w-5" /> Stop
+                  <button onClick={stopRec}
+                    className="flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-sm font-medium border transition-all active:scale-[0.98]"
+                    style={{ color:"var(--danger)", background:"rgba(239,68,68,0.06)", borderColor:"rgba(239,68,68,0.3)" }}>
+                    <div className="relative w-8 h-8 flex-shrink-0">
+                      <div className="absolute inset-0 rounded-xl animate-ping" style={{ background:"rgba(239,68,68,0.2)" }} />
+                      <div className="relative w-8 h-8 rounded-xl flex items-center justify-center border"
+                        style={{ background:"rgba(239,68,68,0.12)", borderColor:"rgba(239,68,68,0.3)" }}>
+                        <div className="w-3 h-3 rounded-sm" style={{ background:"var(--danger)" }} />
+                      </div>
+                    </div>
+                    <span>Berhenti — rekaman aktif</span>
                   </button>
                 )}
-                <button className="flex-1 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 py-3 px-4" onClick={() => window.speechSynthesis?.cancel()}>
-                  Stop TTS
+                <button onClick={()=>window.speechSynthesis?.cancel()}
+                  className="px-4 py-4 rounded-2xl text-xs border transition-all"
+                  style={{ color:"var(--text3)", background:"var(--surface)", borderColor:"var(--border)" }}
+                  title="Hentikan suara AI yang sedang berbicara"
+                  onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--border2)"; e.currentTarget.style.color="var(--text)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)"; e.currentTarget.style.color="var(--text3)";}}>
+                  Stop Suara
                 </button>
               </div>
 
-              <button className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 hover:bg-green-700 text-white py-3 px-4 disabled:opacity-60 shadow"
-                onClick={handleEndSession} disabled={aiThinking || isRecording || feedbackLoading}>
-                <Icon.Sparkle className={`h-5 w-5 ${feedbackLoading ? "animate-pulse" : ""}`} />
-                {feedbackLoading ? "Generating Final Assessment…" : "End Session & Get Feedback"}
-              </button>
-
               {transcript && (
-                <div className="text-center mt-4 bg-gray-50 p-3 rounded-xl border">
-                  <span className="font-semibold">Your Speech (transcribed):</span>
-                  <p className="mt-1 text-gray-700">{transcript}</p>
+                <div className="px-5 py-3 rounded-2xl border" style={{ background:"var(--accent-dim)", borderColor:"var(--accent-border)" }}>
+                  <p className="text-xs mb-1 font-medium" style={{ color:"var(--accent)" }}>Transkrip:</p>
+                  <p className="text-sm" style={{ color:"var(--text2)" }}>{transcript}</p>
                 </div>
               )}
+
+              <button onClick={endSession} disabled={thinking||isRec||fbLoading}
+                className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-medium border transition-all active:scale-[0.98] disabled:opacity-30"
+                style={{ color:"var(--text2)", background:"var(--surface)", borderColor:"var(--border)" }}
+                onMouseEnter={e=>{if(!thinking&&!isRec&&!fbLoading){e.currentTarget.style.color="var(--text)"; e.currentTarget.style.borderColor="var(--border2)";} }}
+                onMouseLeave={e=>{e.currentTarget.style.color="var(--text2)"; e.currentTarget.style.borderColor="var(--border)";}}>
+                {fbLoading ? (
+                  <><Icon.Spinner width={16} height={16} style={{ stroke:"var(--text3)" }} /> Menganalisis…</>
+                ) : (
+                  <>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 3l1.5 3.5L17 8l-3.5 1.5L12 13l-1.5-3.5L7 8l3.5-1.5L12 3z"/>
+                      <path d="M19 15l.8 1.8L22 17l-1.8.8L19 20l-.8-1.2L16 17l2.2-.2L19 15z"/>
+                    </svg>
+                    Akhiri sesi &amp; dapatkan feedback
+                  </>
+                )}
+              </button>
             </>
           ) : (
             <>
-              <div className="rounded-xl border bg-white p-4 mb-3">
-                <p className="text-sm text-gray-700">
-                  ✅ Session ended. You can start a new session or continue to Reflection & Next Plan.
-                </p>
+              <div className="flex items-center gap-2.5 px-5 py-4 rounded-2xl border"
+                style={{ background:"var(--accent-dim)", borderColor:"var(--accent-border)" }}>
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background:"var(--accent)" }} />
+                <p className="text-sm" style={{ color:"var(--text2)" }}>Sesi selesai. Lihat feedback di atas atau mulai sesi baru.</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  className="rounded-xl border bg-white hover:bg-gray-50 py-3 px-4"
-                  onClick={() => { window.location.href = "/practice"; }}
-                >
-                  Start New Session
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={()=>{ window.location.href="/practice"; }}
+                  className="py-3.5 rounded-2xl text-sm font-medium border transition-all"
+                  style={{ color:"var(--text2)", background:"var(--surface)", borderColor:"var(--border)" }}
+                  onMouseEnter={e=>(e.currentTarget.style.borderColor="var(--border2)")}
+                  onMouseLeave={e=>(e.currentTarget.style.borderColor="var(--border)")}>
+                  Pilih skenario lain
                 </button>
-                <button
-                  className="rounded-xl bg-violet-600 hover:bg-violet-700 text-white py-3 px-4 disabled:opacity-60"
-                  onClick={handleReflectAndPlan}
-                  disabled={reflectLoading || planLoading}
-                  title="Generate Reflection & Next Plan"
-                >
-                  {reflectLoading || planLoading ? "Preparing Reflection & Plan…" : "Reflection & Next Plan"}
+                <button onClick={doReflect} disabled={reflectLoad||planLoad}
+                  className="py-3.5 rounded-2xl text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background:"var(--accent)", color:"#0c0c10" }}>
+                  {reflectLoad||planLoad
+                    ? <><Icon.Spinner width={14} height={14} style={{ stroke:"#0c0c10" }} /> Memproses…</>
+                    : "Refleksi & rencana lanjut"}
                 </button>
               </div>
             </>
           )}
-        </section>
-
-        {/* Note */}
-        <section className="mb-10 rounded-2xl border bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-1">Real-time Feedback</h2>
-          <p className="text-gray-600 text-sm">A concise tip is appended to each assistant reply to guide your improvement.</p>
-          <div className="mt-3 text-xs text-gray-500">Local time: {fmt.format(new Date())}</div>
-        </section>
+        </div>
       </div>
-    </main>
+
+      <style>{`@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}`}</style>
+    </div>
   );
 }

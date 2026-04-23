@@ -1,104 +1,116 @@
+// src/app/page.tsx
+// Server Component — semua styling via <style> tag di bawah, tidak butuh file CSS terpisah
 import Link from "next/link";
+
+const SCENARIOS = [
+  { href:"/practice/1", title:"Job Interview",      desc:"Latihan pertanyaan wawancara kerja umum dan profesional.", tag:"Karier",      accent:"#818cf8" },
+  { href:"/practice/2", title:"Daily Conversation", desc:"Percakapan sehari-hari untuk melatih kelancaran berbicara.",       tag:"Sosial",      accent:"#00c896" },
+  { href:"/practice/3", title:"Business Meeting",   desc:"Presentasi, diskusi, dan negosiasi secara profesional.",   tag:"Profesional", accent:"#60a5fa" },
+  { href:"/practice/4", title:"Travel Situations",  desc:"Dari bandara hingga check-in hotel dalam bahasa Inggris.", tag:"Perjalanan",  accent:"#f472b6" },
+];
+
+const FEATURES = [
+  { emoji:"💬", title:"Feedback instan",    desc:"Tips singkat dan yang bisa langsung diterapkan setelah setiap jawaban untuk memperbaiki kesalahan." },
+  { emoji:"🎙️", title:"Voice-to-Text",     desc:"Berbicara secara alami — browser merekam suaramu untuk dievaluasi AI." },
+  { emoji:"⚡",  title:"Sesi adaptif (AI)", desc:"AI memilihkan skenario dan tingkat kesulitan berdasarkan progres dan kelemahanmu." },
+  { emoji:"📊", title:"Analitik CEFR",      desc:"Pantau perkembangan kosakata, tata bahasa, kelancaran, koherensi, dan pelafalan." },
+];
+
+const HOW = [
+  { n:"1", t:"Pilih skenario",         d:"Interview, percakapan harian, rapat bisnis, atau perjalanan." },
+  { n:"2", t:"Berbicara & dapat tips", d:"Feedback real-time setelah setiap respons dari AI." },
+  { n:"3", t:"Lihat progres",          d:"Pantau skor dan tren kemampuan di dashboard pribadimu." },
+];
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-white dark:from-[#0B0F1A] dark:via-[#0B0F1A] dark:to-[#0B0F1A]">
-      {/* HERO */}
-      <section className="relative overflow-hidden">
-        {/* glow */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-32 mx-auto h-[420px] w-[860px] rounded-full blur-3xl"
-          style={{
-            background:
-              "radial-gradient(60% 60% at 50% 50%, rgba(59,130,246,.25) 0%, rgba(59,130,246,0) 60%)",
-          }}
-        />
-        <div className="container mx-auto max-w-6xl px-6 pt-24 pb-10">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-              <svg width="16" height="16" viewBox="0 0 24 24" className="opacity-80">
-                <path fill="currentColor" d="M12 3a9 9 0 1 0 9 9a9 9 0 0 0-9-9m1 13h-2v-2h2zm0-4h-2V7h2z"/>
+    <main className="home-root">
+
+      {/* ── Navbar ── */}
+      <header className="home-nav">
+        <div className="home-nav-inner">
+          <div className="home-logo">
+            <div className="home-logo-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0c0c10" strokeWidth="2.5">
+                <rect x="9" y="2" width="6" height="12" rx="3"/>
+                <path d="M12 14v4"/><path d="M8 10v2a4 4 0 0 0 8 0v-2"/>
               </svg>
-              AI Speaking Coach • TOEFL/IELTS
-            </span>
-            <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl dark:text-white">
-              Practice English speaking with
-              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"> real-time feedback</span>
-            </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600 dark:text-slate-300">
-              Voice-to-text conversation, instant tips, and adaptive sessions that level up with your progress.
-            </p>
-
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                href="/practice"
-                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 focus:outline-none focus-visible:ring focus-visible:ring-blue-400"
-              >
-                Start Practice
-                <svg className="ml-2 h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-                  <path d="M10.293 15.707a1 1 0 010-1.414L12.586 12H6a1 1 0 110-2h6.586l-2.293-2.293a1 1 0 111.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" />
-                </svg>
-              </Link>
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-slate-900 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring focus-visible:ring-blue-400 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-              >
-                View Dashboard
-              </Link>
             </div>
+            <span className="home-logo-text">SpeakEng</span>
+          </div>
+          <div className="home-nav-right">
+            <Link href="/auth"     className="btn-ghost-sm">Masuk</Link>
+            <Link href="/practice" className="btn-accent-sm">Mulai Latihan</Link>
+          </div>
+        </div>
+      </header>
 
-            {/* trust badges */}
-            <div className="mt-6 text-sm text-slate-500 dark:text-slate-400">
-             
-            </div>
+      {/* ── Hero ── */}
+      <section className="hero-section">
+        <div className="hero-glow" aria-hidden />
+        <div className="hero-inner">
+          <div className="hero-badge">
+            <div className="hero-badge-dot" />
+            AI Speaking Coach · Evaluasi CEFR · Unit Bahasa Poltek SSN
+          </div>
+          <h1 className="hero-title">
+            Tingkatkan kemampuan <span className="hero-accent">berbicara</span> bahasa Inggris
+          </h1>
+          <p className="hero-sub">
+            Percakapan berbasis AI dengan feedback real-time, penilaian CEFR otomatis, dan sesi adaptif yang menyesuaikan progresmu.
+          </p>
+          <div className="hero-btns">
+            <Link href="/practice" className="btn-primary-lg">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+              Mulai Latihan
+            </Link>
+            <Link href="/dashboard" className="btn-secondary-lg">
+              Lihat Progres
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+              </svg>
+            </Link>
+          </div>
+          <div className="hero-stats">
+            {[
+              { value:"5",    label:"Dimensi CEFR dinilai" },
+              { value:"A2–C2",label:"Rentang level" },
+              { value:"AI",   label:"LLaMA 3.3 + Whisper" },
+            ].map(s => (
+              <div key={s.label} className="hero-stat">
+                <p className="hero-stat-val">{s.value}</p>
+                <p className="hero-stat-label">{s.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* QUICK ACCESS CARDS */}
-      <section className="container mx-auto max-w-6xl px-6 pb-2">
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            {
-              href: "/practice/1",
-              title: "Job Interview",
-              desc: "Practice common interview questions and answers.",
-              badge: "Structured",
-            },
-            {
-              href: "/practice/2",
-              title: "Daily Conversation",
-              desc: "Casual chats for everyday fluency.",
-              badge: "Warm-up",
-            },
-            {
-              href: "/practice/3",
-              title: "Business Meeting",
-              desc: "Present, discuss, and negotiate clearly.",
-              badge: "Professional",
-            },
-            {
-              href: "/practice/4",
-              title: "Travel Situations",
-              desc: "From airport to hotel check-in.",
-              badge: "On the go",
-            },
-          ].map((c) => (
-            <Link
-              key={c.title}
-              href={c.href}
-              className="group relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
-            >
-              <div className="mb-2 inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 dark:bg-slate-800">{c.badge}</span>
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{c.title}</h3>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{c.desc}</p>
-              <span className="mt-3 inline-flex items-center text-sm font-medium text-blue-600 group-hover:gap-2">
-                Start
-                <svg className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-                  <path d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 11-1.414-1.414L14.586 11H4a1 1 0 110-2h10.586l-2.293-2.293a1 1 0 010-1.414z" />
+      {/* ── Scenario cards ── */}
+      <section className="section-wrap">
+        <div className="section-head">
+          <div>
+            <p className="section-eyebrow">Pilih skenario</p>
+            <h2 className="section-title">Mulai langsung dari skenario</h2>
+          </div>
+          <Link href="/practice" className="link-subtle">Lihat semua →</Link>
+        </div>
+        <div className="scenarios-grid">
+          {SCENARIOS.map(c => (
+            <Link key={c.title} href={c.href} className="scenario-card"
+              style={{ "--sc-accent": c.accent } as React.CSSProperties}>
+              <span className="scenario-tag"
+                style={{ color:c.accent, background:`${c.accent}14`, borderColor:`${c.accent}30` }}>
+                {c.tag}
+              </span>
+              <h3 className="scenario-name">{c.title}</h3>
+              <p className="scenario-desc">{c.desc}</p>
+              <span className="scenario-cta" style={{ color:c.accent }}>
+                Mulai latihan
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
                 </svg>
               </span>
             </Link>
@@ -106,114 +118,345 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FEATURES */}
-      <section className="container mx-auto max-w-6xl px-6 py-14">
-        <div className="grid gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-1">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Why you’ll improve faster</h2>
-            <p className="mt-2 text-slate-600 dark:text-slate-300">
-              Designed for measurable progress—clear feedback, adaptive difficulty, and session analytics.
-            </p>
-          </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:col-span-2">
-            {[
-              {
-                icon: (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-                    <path d="M12 3a9 9 0 109 9a9 9 0 00-9-9zm1 13h-2v-2h2zm0-4h-2V7h2z" />
+      {/* ── Features ── */}
+      <section className="features-section">
+        <div className="section-wrap" style={{ padding:"0 24px" }}>
+          <div className="features-grid">
+            <div className="features-left">
+              <p className="section-eyebrow">Kenapa lebih efektif</p>
+              <h2 className="section-title">Dirancang untuk kemajuan yang terukur</h2>
+              <p className="features-sub">
+                Feedback jelas, kesulitan adaptif, dan analitik sesi membuatmu bisa melacak perkembangan nyata.
+              </p>
+              <Link href="/practice/agent" className="ai-pill">
+                <div className="ai-pill-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0c0c10" strokeWidth="2.5">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                   </svg>
-                ),
-                title: "Instant feedback",
-                desc: "Short, actionable tips after every reply to fix errors quickly.",
-              },
-              {
-                icon: (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-                    <path d="M12 3l7 6v12h-5v-6H10v6H5V9z" />
-                  </svg>
-                ),
-                title: "Voice-to-Text",
-                desc: "Speak naturally—browser captures your voice for evaluation.",
-              },
-              {
-                icon: (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-                    <path d="M3 5h18v2H3zm2 6h14v2H5zm4 6h6v2H9z" />
-                  </svg>
-                ),
-                title: "Adaptive sessions",
-                desc: "Difficulty adjusts based on your progress and weak areas.",
-              },
-              {
-                icon: (
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-                    <path d="M11 17a4 4 0 110-8a4 4 0 010 8zm8-5a8 8 0 11-16 0a8 8 0 0116 0z" />
-                  </svg>
-                ),
-                title: "Analytics",
-                desc: "Track pronunciation, grammar, fluency & vocab over time.",
-              },
-            ].map((f) => (
-              <div
-                key={f.title}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
-              >
-                <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-                  {f.icon}
                 </div>
-                <h3 className="text-base font-semibold text-slate-900 dark:text-white">{f.title}</h3>
-                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{f.desc}</p>
-              </div>
-            ))}
+                <div>
+                  <p className="ai-pill-title">Coba AI Plan</p>
+                  <p className="ai-pill-sub">AI pilihkan skenario terbaik untukmu</p>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" className="ai-pill-arrow">
+                  <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+                </svg>
+              </Link>
+            </div>
+            <div className="feature-cards">
+              {FEATURES.map(f => (
+                <div key={f.title} className="feature-card">
+                  <span className="feature-emoji">{f.emoji}</span>
+                  <h3 className="feature-title">{f.title}</h3>
+                  <p className="feature-desc">{f.desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section className="container mx-auto max-w-6xl px-6 pb-16">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">How it works</h2>
-        <div className="mt-6 grid gap-6 sm:grid-cols-3">
-          {[
-            { n: "1", t: "Pick a scenario", d: "Interview, daily talk, meetings, or travel." },
-            { n: "2", t: "Speak & get tips", d: "Real-time feedback for each response." },
-            { n: "3", t: "See progress", d: "View scores & trends on your dashboard." },
-          ].map((s) => (
-            <div key={s.n} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                {s.n}
-              </div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">{s.t}</h3>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{s.d}</p>
+      {/* ── How it works ── */}
+      <section className="section-wrap">
+        <div className="how-head">
+          <p className="section-eyebrow">Cara kerja</p>
+          <h2 className="section-title">Mulai dalam 3 langkah</h2>
+        </div>
+        <div className="how-grid">
+          {HOW.map(s => (
+            <div key={s.n} className="how-card">
+              <div className="how-num">{s.n}</div>
+              <h3 className="how-title">{s.t}</h3>
+              <p className="how-desc">{s.d}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="border-t border-slate-200 bg-white/60 backdrop-blur dark:border-slate-800 dark:bg-slate-900/60">
-        <div className="container mx-auto max-w-6xl px-6 py-12">
-          <div className="flex flex-col items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8 text-white md:flex-row">
+      {/* ── CTA banner ── */}
+      <section className="cta-section">
+        <div className="section-wrap" style={{ paddingBottom:48 }}>
+          <div className="cta-banner">
             <div>
-              <h3 className="text-2xl font-bold">Ready to speak with confidence?</h3>
-              <p className="mt-1 text-blue-100">Start your first session now and get instant feedback.</p>
+              <h3 className="cta-title">Siap berbicara dengan percaya diri?</h3>
+              <p className="cta-sub">Mulai sesi pertamamu sekarang dan dapatkan feedback instan dari AI.</p>
             </div>
-            <div className="flex gap-3">
-              <Link
-                href="/practice"
-                className="inline-flex items-center rounded-xl bg-white px-5 py-3 font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-              >
-                Start Practice
-              </Link>
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center rounded-xl border border-white/30 px-5 py-3 font-semibold text-white backdrop-blur transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-              >
-                View Dashboard
-              </Link>
+            <div className="cta-btns">
+              <Link href="/practice" className="cta-btn-dark">Mulai Latihan</Link>
+              <Link href="/auth"     className="cta-btn-outline">Daftar Akun</Link>
             </div>
           </div>
         </div>
       </section>
+
+      {/* ── Footer ── */}
+      <footer className="home-footer">
+        <p>© 2025 SpeakEng · Unit Bahasa Poltek SSN · Next.js + FastAPI + LLaMA 3.3</p>
+      </footer>
+
+      {/* ═══ Styles — semua di sini, tidak butuh file CSS terpisah ═══ */}
+      <style>{`
+        .home-root { min-height: 100vh; background: var(--bg); color: var(--text); }
+
+        /* ─ Navbar ─ */
+        .home-nav {
+          position: sticky; top: 0; z-index: 40;
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          background: color-mix(in srgb, var(--bg) 92%, transparent);
+          border-bottom: 1px solid var(--border);
+        }
+        .home-nav-inner {
+          max-width: 1152px; margin: 0 auto;
+          padding: 0 24px; height: 56px;
+          display: flex; align-items: center; justify-content: space-between;
+        }
+        .home-logo { display: flex; align-items: center; gap: 9px; }
+        .home-logo-icon {
+          width: 28px; height: 28px; border-radius: 9px;
+          background: var(--accent);
+          display: flex; align-items: center; justify-content: center;
+        }
+        .home-logo-text { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+        .home-nav-right { display: flex; align-items: center; gap: 8px; }
+
+        /* ─ Buttons ─ */
+        .btn-ghost-sm {
+          padding: 6px 14px; border-radius: 10px;
+          font-size: 13px; font-weight: 500;
+          color: var(--text2); text-decoration: none;
+          border: 1px solid var(--border2); background: var(--surface);
+          transition: background .15s, color .15s;
+        }
+        .btn-ghost-sm:hover { background: var(--surface2); color: var(--text); }
+
+        .btn-accent-sm {
+          padding: 6px 14px; border-radius: 10px;
+          font-size: 13px; font-weight: 700;
+          color: #0c0c10; text-decoration: none;
+          background: var(--accent);
+          transition: opacity .15s;
+        }
+        .btn-accent-sm:hover { opacity: 0.88; }
+
+        .btn-primary-lg {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 11px 24px; border-radius: 14px;
+          font-size: 14px; font-weight: 700;
+          background: var(--accent); color: #0c0c10; text-decoration: none;
+          box-shadow: 0 8px 24px rgba(0, 200, 150, 0.25);
+          transition: opacity .15s, transform .1s;
+        }
+        .btn-primary-lg:hover  { opacity: 0.9; }
+        .btn-primary-lg:active { transform: scale(0.98); }
+
+        .btn-secondary-lg {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 11px 24px; border-radius: 14px;
+          font-size: 14px; font-weight: 600;
+          background: var(--surface); color: var(--text2); text-decoration: none;
+          border: 1px solid var(--border2);
+          transition: background .15s, color .15s;
+        }
+        .btn-secondary-lg:hover { background: var(--surface2); color: var(--text); }
+
+        .link-subtle {
+          font-size: 13px; color: var(--accent);
+          text-decoration: none; font-weight: 500;
+          transition: opacity .15s;
+        }
+        .link-subtle:hover { opacity: 0.7; }
+
+        /* ─ Hero ─ */
+        .hero-section { position: relative; overflow: hidden; padding: 88px 24px 64px; }
+        .hero-glow {
+          pointer-events: none; position: absolute;
+          top: -10%; left: 50%; transform: translateX(-50%);
+          width: 700px; height: 500px; border-radius: 50%; filter: blur(80px);
+          background: radial-gradient(60% 60% at 50% 50%, rgba(0, 200, 150, 0.10) 0%, transparent 70%);
+        }
+        .hero-inner { max-width: 720px; margin: 0 auto; text-align: center; position: relative; }
+        .hero-badge {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 5px 14px; border-radius: 20px;
+          border: 1px solid var(--border2); background: var(--surface);
+          font-size: 12px; font-weight: 500; color: var(--text2);
+          margin-bottom: 20px;
+        }
+        .hero-badge-dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          background: var(--accent);
+          animation: pulse-dot 2s ease-in-out infinite;
+        }
+        .hero-title {
+          margin: 0 0 16px;
+          font-size: clamp(30px, 5vw, 50px);
+          font-weight: 800; letter-spacing: -1.5px; line-height: 1.1;
+          color: var(--text);
+        }
+        .hero-accent { color: var(--accent); }
+        .hero-sub {
+          margin: 0 auto 32px; font-size: 17px;
+          color: var(--text2); line-height: 1.7; max-width: 560px;
+        }
+        .hero-btns {
+          display: flex; justify-content: center;
+          gap: 10px; flex-wrap: wrap; margin-bottom: 40px;
+        }
+        .hero-stats { display: flex; justify-content: center; gap: 32px; flex-wrap: wrap; }
+        .hero-stat { text-align: center; }
+        .hero-stat-val   { margin: 0; font-size: 22px; font-weight: 800; color: var(--accent); }
+        .hero-stat-label { margin: 2px 0 0; font-size: 11px; color: var(--text3); }
+
+        /* ─ Section shared ─ */
+        .section-wrap { max-width: 1152px; margin: 0 auto; padding: 0 24px 64px; }
+        .section-head {
+          display: flex; align-items: flex-end; justify-content: space-between;
+          flex-wrap: wrap; gap: 8px; margin-bottom: 24px;
+        }
+        .section-eyebrow {
+          margin: 0 0 4px; font-size: 11px; font-weight: 600;
+          text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3);
+        }
+        .section-title { margin: 0; font-size: 20px; font-weight: 800; color: var(--text); }
+
+        /* ─ Scenario cards ─ */
+        .scenarios-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 16px;
+        }
+        .scenario-card {
+          display: block; text-decoration: none;
+          background: var(--surface); border: 1px solid var(--border);
+          border-radius: 20px; padding: 22px 20px;
+          transition: border-color .15s, box-shadow .15s, transform .15s;
+        }
+        .scenario-card:hover {
+          border-color: var(--sc-accent, var(--accent));
+          box-shadow: 0 4px 20px color-mix(in srgb, var(--sc-accent, var(--accent)) 12%, transparent);
+          transform: translateY(-2px);
+        }
+        .scenario-tag {
+          display: inline-block; margin-bottom: 14px;
+          padding: 3px 10px; border-radius: 20px;
+          font-size: 11px; font-weight: 600;
+          border: 1px solid transparent;
+        }
+        .scenario-name { margin: 0 0 6px; font-size: 15px; font-weight: 700; color: var(--text); }
+        .scenario-desc { margin: 0 0 16px; font-size: 13px; color: var(--text2); line-height: 1.55; }
+        .scenario-cta {
+          display: inline-flex; align-items: center; gap: 5px;
+          font-size: 13px; font-weight: 600;
+          transition: gap .15s;
+        }
+        .scenario-card:hover .scenario-cta { gap: 8px; }
+
+        /* ─ Features ─ */
+        .features-section {
+          background: var(--surface2);
+          border-top: 1px solid var(--border);
+          border-bottom: 1px solid var(--border);
+          padding: 64px 0;
+        }
+        .features-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 32px; align-items: start;
+          max-width: 1104px; margin: 0 auto;
+        }
+        .features-left { display: flex; flex-direction: column; }
+        .features-sub  { margin: 0 0 20px; font-size: 14px; color: var(--text2); line-height: 1.7; }
+
+        .ai-pill {
+          display: flex; align-items: center; gap: 10px;
+          padding: 14px 16px; border-radius: 16px; text-decoration: none;
+          background: var(--accent-dim); border: 1px solid var(--accent-border);
+          transition: background .15s;
+        }
+        .ai-pill:hover { background: rgba(0, 200, 150, 0.18); }
+        .ai-pill-icon {
+          width: 36px; height: 36px; border-radius: 10px;
+          background: var(--accent);
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .ai-pill-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--text); }
+        .ai-pill-sub   { margin: 0; font-size: 12px; color: var(--text2); }
+        .ai-pill-arrow { margin-left: auto; flex-shrink: 0; }
+
+        .feature-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .feature-card {
+          background: var(--surface); border: 1px solid var(--border);
+          border-radius: 16px; padding: 18px 16px;
+          transition: box-shadow .15s;
+        }
+        .feature-card:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06); }
+        .feature-emoji { font-size: 22px; display: block; margin-bottom: 10px; }
+        .feature-title { margin: 0 0 5px; font-size: 14px; font-weight: 700; color: var(--text); }
+        .feature-desc  { margin: 0; font-size: 12px; color: var(--text2); line-height: 1.55; }
+
+        /* ─ How ─ */
+        .how-head { text-align: center; margin-bottom: 28px; }
+        .how-head .section-eyebrow { display: inline-block; }
+        .how-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 16px;
+        }
+        .how-card {
+          background: var(--surface); border: 1px solid var(--border);
+          border-radius: 20px; padding: 24px 20px;
+        }
+        .how-num {
+          width: 32px; height: 32px; border-radius: 10px;
+          background: var(--accent-dim); border: 1px solid var(--accent-border);
+          display: flex; align-items: center; justify-content: center;
+          margin-bottom: 14px;
+          font-size: 14px; font-weight: 800; color: var(--accent);
+        }
+        .how-title { margin: 0 0 5px; font-size: 14px; font-weight: 700; color: var(--text); }
+        .how-desc  { margin: 0; font-size: 13px; color: var(--text2); line-height: 1.55; }
+
+        /* ─ CTA ─ */
+        .cta-section { background: var(--surface2); border-top: 1px solid var(--border); }
+        .cta-banner {
+          background: var(--accent); border-radius: 24px;
+          padding: 40px 32px;
+          display: flex; flex-wrap: wrap; align-items: center;
+          justify-content: space-between; gap: 24px;
+        }
+        .cta-title { margin: 0 0 6px; font-size: 22px; font-weight: 800; color: #0c0c10; }
+        .cta-sub   { margin: 0; font-size: 14px; color: rgba(0, 0, 0, 0.55); }
+        .cta-btns  { display: flex; gap: 10px; flex-wrap: wrap; }
+        .cta-btn-dark {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 11px 22px; border-radius: 14px;
+          font-size: 14px; font-weight: 700;
+          background: #0c0c10; color: var(--accent); text-decoration: none;
+          transition: opacity .15s;
+        }
+        .cta-btn-dark:hover { opacity: 0.88; }
+        .cta-btn-outline {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 11px 22px; border-radius: 14px;
+          font-size: 14px; font-weight: 600;
+          background: rgba(0, 0, 0, 0.12); color: #0c0c10; text-decoration: none;
+          border: 1px solid rgba(0, 0, 0, 0.18);
+          transition: background .15s;
+        }
+        .cta-btn-outline:hover { background: rgba(0, 0, 0, 0.18); }
+
+        /* ─ Footer ─ */
+        .home-footer { border-top: 1px solid var(--border); padding: 24px; text-align: center; }
+        .home-footer p { margin: 0; font-size: 12px; color: var(--text3); }
+
+        /* ─ Animations ─ */
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.35; }
+        }
+      `}</style>
     </main>
   );
 }
