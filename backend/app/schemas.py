@@ -121,6 +121,7 @@ class SaveSessionIn(BaseModel):
     score_phonology: float
     comment:         Optional[str]   = None
     duration_min:    Optional[float] = 0.0
+    audio_path:      Optional[str]   = None
     user_id:         Optional[int]   = None  # diisi dari token, bukan dari body
 
 

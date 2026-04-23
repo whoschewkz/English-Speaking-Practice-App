@@ -1,5 +1,7 @@
 import sys
+import os
 import traceback
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Body, UploadFile, File, Form
 from fastapi.responses import JSONResponse
@@ -9,6 +11,10 @@ from ..schemas import ChatRequest
 from ..auth import require_user
 
 router = APIRouter()
+
+# Ensure uploads directory exists
+UPLOADS_DIR = Path(__file__).parent.parent.parent / "uploads" / "audio"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @router.post("/transcribe")
@@ -37,11 +43,25 @@ async def transcribe_audio(
     files = {"file": (filename, file_bytes, content_type)}
     data  = {"model": "whisper-large-v3", "language": language, "temperature": 0.0}
 
+    # Save audio file
+    user_id = int(current_user["sub"])
+    import uuid
+    timestamp = __import__('datetime').datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    audio_filename = f"user_{user_id}_{timestamp}_{uuid.uuid4().hex[:8]}.wav"
+    audio_path = UPLOADS_DIR / audio_filename
+    try:
+        with open(audio_path, "wb") as f:
+            f.write(file_bytes)
+    except Exception as e:
+        print(f"[AUDIO] Save failed: {e}")
+
     async with httpx.AsyncClient(timeout=120) as client:
         r = await client.post(url, headers=headers, files=files, data=data)
         if r.status_code != 200:
             return JSONResponse({"error": "groq_transcribe_failed", "detail": r.text}, status_code=500)
-        return r.json()
+        result = r.json()
+        result["audio_path"] = audio_filename  # Return relative path
+        return result
 
 
 @router.post("/chat")

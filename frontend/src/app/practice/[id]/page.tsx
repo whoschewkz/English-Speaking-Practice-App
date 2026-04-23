@@ -69,6 +69,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
   const [isRec,        setIsRec]        = useState(false);
   const [transcript,   setTranscript]   = useState("");
   const [recError,     setRecError]     = useState<string|null>(null);
+  const [audioPath,    setAudioPath]    = useState<string|null>(null);
   const [thinking,     setThinking]     = useState(false);
   const [agentTitle,   setAgentTitle]   = useState("");
   const [agentLevel,   setAgentLevel]   = useState<number|null>(null);
@@ -202,6 +203,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
       const d=await r.json();
       const t=d?.text||"";
       setTranscript(t);
+      if (d?.audio_path) setAudioPath(d.audio_path);
       if (t) await sendToAI(t);
       else setMsgs(p=>[...p,{role:"assistant",content:"Suara tidak terdengar jelas. Coba lagi."}]);
     } catch { setMsgs(p=>[...p,{role:"assistant",content:"Transcription gagal. Coba lagi."}]); }
@@ -254,6 +256,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
             score_range:clip(s.range), score_accuracy:clip(s.accuracy),
             score_fluency:clip(s.fluency), score_coherence:clip(s.coherence),
             score_phonology:clip(s.phonology), comment:fbJson.comment||"", duration_min:dur,
+            audio_path:audioPath,
           }),
         });
       } else { setFbRaw(fbJson?.content||"Tidak ada feedback yang dihasilkan."); }
@@ -294,7 +297,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
     try { window.speechSynthesis?.cancel(); } catch {}
     if (isAgent&&planData?.scenario) setAgentTitle(planData.scenario);
     setEnded(false); setFeedback(null); setFbRaw(""); setDescriptors(null); setObjective(null);
-    setReflectData(null); setPlanData(null); setTranscript(""); setStartAt(Date.now());
+    setReflectData(null); setPlanData(null); setTranscript(""); setAudioPath(null); setStartAt(Date.now());
     setMsgs([{role:"assistant",content:starter||(isAgent?"Let's continue!":mapOpen(id))}]);
   };
 

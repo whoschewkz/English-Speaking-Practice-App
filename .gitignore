@@ -46,6 +46,7 @@ build/
 *.db
 speaking.db
 backend/speaking.db
+backend/uploads/
 
 # === IDE ===
 .vscode/*

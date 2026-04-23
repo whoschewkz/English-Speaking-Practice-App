@@ -61,6 +61,7 @@ def save_session(
         score_overall=overall,
         comment=(payload.comment or ""),
         duration_min=float(payload.duration_min or 0.0),
+        audio_path=payload.audio_path,
     )
     db.add(row); db.commit(); db.refresh(row)
 

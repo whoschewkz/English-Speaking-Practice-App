@@ -3,6 +3,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from .config import API_PREFIX, ALLOWED_ORIGINS, GROQ_API_KEY
 from .database import engine, SessionLocal, sqlite_add_column_if_missing
@@ -27,6 +29,7 @@ sqlite_add_column_if_missing("sessions",       "score_fluency REAL NOT NULL DEFA
 sqlite_add_column_if_missing("sessions",       "score_coherence REAL NOT NULL DEFAULT 3.0")
 sqlite_add_column_if_missing("sessions",       "score_phonology REAL NOT NULL DEFAULT 3.0")
 sqlite_add_column_if_missing("sessions",       "user_id INTEGER NOT NULL DEFAULT 1")
+sqlite_add_column_if_missing("sessions",       "audio_path TEXT")
 sqlite_add_column_if_missing("error_patterns", "weight REAL NOT NULL DEFAULT 1.0")
 
 # Seed
@@ -74,6 +77,12 @@ app.include_router(chat.router,      prefix=API_PREFIX)
 app.include_router(feedback.router,  prefix=API_PREFIX)
 app.include_router(agent.router,     prefix=API_PREFIX)
 app.include_router(profile.router,   prefix=API_PREFIX)
+
+
+# Serve static audio files
+uploads_dir = Path(__file__).parent.parent / "uploads"
+if uploads_dir.exists():
+    app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
 if __name__ == "__main__":

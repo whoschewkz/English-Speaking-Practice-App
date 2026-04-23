@@ -47,6 +47,7 @@ class SessionRecordORM(Base):
     score_overall   = Column(Float, nullable=False, default=3.0)
     comment         = Column(Text, nullable=True)
     duration_min    = Column(Float, nullable=False, default=0.0)
+    audio_path      = Column(String(500), nullable=True)
     created_at      = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
