@@ -119,3 +119,17 @@ class SessionSummaryORM(Base):
     summary         = Column(Text, nullable=False)
     objectives_next = Column(Text, nullable=True)
     created_at      = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class RaterAssessmentORM(Base):
+    __tablename__ = "rater_assessments"
+    id              = Column(Integer, primary_key=True, autoincrement=True)
+    session_id      = Column(Integer, index=True, nullable=False)
+    rater_id        = Column(Integer, nullable=False, default=1)  # 1 or 2
+    score_range     = Column(Float, nullable=True)
+    score_accuracy  = Column(Float, nullable=True)
+    score_fluency   = Column(Float, nullable=True)
+    score_coherence = Column(Float, nullable=True)
+    score_phonology = Column(Float, nullable=True)
+    notes           = Column(Text, nullable=True)
+    rated_at        = Column(DateTime, default=datetime.utcnow, nullable=False)

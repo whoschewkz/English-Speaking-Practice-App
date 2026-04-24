@@ -163,3 +163,25 @@ class PlanGenOut(BaseModel):
     rubric:          List[str]
     starter_turns:   List[str]
     target_time_min: int
+
+
+class RaterAssessmentIn(BaseModel):
+    session_id:      int
+    rater_id:        int = Field(..., ge=1, le=2)
+    score_range:     Optional[float] = Field(None, ge=1, le=5)
+    score_accuracy:  Optional[float] = Field(None, ge=1, le=5)
+    score_fluency:   Optional[float] = Field(None, ge=1, le=5)
+    score_coherence: Optional[float] = Field(None, ge=1, le=5)
+    score_phonology: Optional[float] = Field(None, ge=1, le=5)
+    notes:           Optional[str] = None
+
+
+class SessionForRatingOut(BaseModel):
+    id:              int
+    user_id:         int
+    scenario:        str
+    audio_path:      Optional[str]
+    duration_min:    float
+    created_at:      str
+    ai_scores:       dict  # scores from AI
+    rater_scores:    dict  # scores from both raters (if exists)
