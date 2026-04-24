@@ -1,4 +1,3 @@
-from scipy import stats
 from sqlalchemy import select as sa_select, desc
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
@@ -123,6 +122,8 @@ def calculate_correlations(
     db: Session = Depends(get_db),
 ):
     """Calculate correlation between AI scores and human raters."""
+    from scipy import stats
+
     sessions = db.execute(
         sa_select(SessionRecordORM)
         .where(SessionRecordORM.audio_path.isnot(None))
