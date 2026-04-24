@@ -15,6 +15,7 @@ elevenlabs==0.2.27
 pgvector==0.2.3
 alembic==1.12.1
 sqlalchemy==2.0.23
+scipy>=1.11.0
 
 # LiveKit stack 1.0
 # livekit==1.0.*
