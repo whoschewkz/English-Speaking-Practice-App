@@ -1,4 +1,7 @@
+import wave
+import uuid as _uuid
 from math import fsum
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select as sa_select, func, desc
@@ -9,6 +12,35 @@ from ..models import SessionRecordORM
 from ..schemas import SaveSessionIn
 from ..auth import require_user
 from ..utils import ensure_profile, _clip1to5, _ma_update, _adjust_level
+
+_UPLOADS = Path(__file__).parent.parent.parent / "uploads" / "audio"
+
+
+def _concat_wav(filenames: list[str]) -> str | None:
+    """Gabungkan semua WAV turn menjadi satu file sesi penuh. Return filename baru."""
+    valid = [_UPLOADS / f for f in filenames if (_UPLOADS / f).exists()]
+    if not valid:
+        return None
+    if len(valid) == 1:
+        return valid[0].name
+
+    out_name = f"session_{_uuid.uuid4().hex[:12]}.wav"
+    out_path = _UPLOADS / out_name
+    try:
+        params, frames = None, []
+        for p in valid:
+            with wave.open(str(p), "rb") as wf:
+                if params is None:
+                    params = wf.getparams()
+                frames.append(wf.readframes(wf.getnframes()))
+        with wave.open(str(out_path), "wb") as wf:
+            wf.setparams(params)
+            for f in frames:
+                wf.writeframes(f)
+        return out_name
+    except Exception as e:
+        print(f"[AUDIO] concat failed: {e}")
+        return valid[-1].name  # fallback ke clip terakhir
 
 router = APIRouter()
 
@@ -61,7 +93,8 @@ def save_session(
         score_overall=overall,
         comment=(payload.comment or ""),
         duration_min=float(payload.duration_min or 0.0),
-        audio_path=payload.audio_path,
+        # Gabungkan semua turn audio menjadi satu file; fallback ke audio_path lama
+        audio_path=_concat_wav(payload.audio_paths) if payload.audio_paths else payload.audio_path,
     )
     db.add(row); db.commit(); db.refresh(row)
 

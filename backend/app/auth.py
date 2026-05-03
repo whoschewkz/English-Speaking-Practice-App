@@ -91,5 +91,8 @@ def require_role(*roles: str):
     return _check
 
 
-require_admin = require_role("admin")
-require_user  = require_role("admin", "user")
+require_admin  = require_role("admin")
+require_rater  = require_role("rater1", "rater2")   # kedua rater bisa akses endpoint rater
+require_rater1 = require_role("rater1")
+require_rater2 = require_role("rater2")
+require_user   = require_role("admin", "user", "rater1", "rater2")

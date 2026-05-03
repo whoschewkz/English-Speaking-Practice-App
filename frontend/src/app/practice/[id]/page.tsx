@@ -69,10 +69,11 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
   const [isRec,        setIsRec]        = useState(false);
   const [transcript,   setTranscript]   = useState("");
   const [recError,     setRecError]     = useState<string|null>(null);
-  const [audioPath,    setAudioPath]    = useState<string|null>(null);
+  const [audioPaths,   setAudioPaths]   = useState<string[]>([]);   // semua turn terekam
   const [thinking,     setThinking]     = useState(false);
-  const [agentTitle,   setAgentTitle]   = useState("");
-  const [agentLevel,   setAgentLevel]   = useState<number|null>(null);
+  const [agentTitle,     setAgentTitle]     = useState("");
+  const [agentLevel,     setAgentLevel]     = useState<number|null>(null);
+  const [agentSystemCtx, setAgentSystemCtx] = useState<string>("");
   const [itemId,       setItemId]       = useState<number|null>(null);
   const [fbLoading,    setFbLoading]    = useState(false);
   const [feedback,     setFeedback]     = useState<Scores|null>(null);
@@ -87,6 +88,8 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
   const [mounted,      setMounted]      = useState(false);
   const [startAt,      setStartAt]      = useState<number|null>(null);
   const [elapsedTime,  setElapsedTime]  = useState("0:00");
+  // Context skenario — dipakai di system prompt agar AI tetap on-topic
+  const [scenarioCtx,  setScenarioCtx]  = useState<{ title:string; description:string }>({ title:"", description:"" });
 
   const audioRef  = useRef<AudioProcessor|null>(null);
   const streamRef = useRef<MediaStream|null>(null);
@@ -138,14 +141,43 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
           setAgentTitle(d.scenario||"Latihan Personal");
           setAgentLevel(Number.isFinite(d.level)?d.level:null);
           setItemId(d.item_id??null);
-          setMsgs([{role:"assistant",content:d.prompt||"Let's begin!"}]);
+          setAgentSystemCtx(d.system_ctx||"");   // simpan context level/focus untuk chat
+          setMsgs([{role:"assistant",content:d.prompt||"Let's begin!"}]); // pesan natural
         } catch {
           if (!alive) return;
           setAgentTitle("Latihan Personal"); setAgentLevel(2);
           setMsgs([{role:"assistant",content:"Hi! Let's practice speaking English. Tell me about yourself."}]);
         }
       } else {
-        setMsgs([{role:"assistant",content:mapOpen(id)}]);
+        // Skenario bawaan (ID 1-4): pakai opener hardcoded supaya langsung tanpa delay
+        const builtIn = ["1","2","3","4"];
+        if (builtIn.includes(id)) {
+          const title = mapTitle(id);
+          setScenarioCtx({ title, description:"" });
+          setMsgs([{role:"assistant",content:mapOpen(id)}]);
+        } else {
+          // Skenario custom dari admin: fetch judul+deskripsi, minta LLM buat opening yang relevan
+          try {
+            const listR = await authFetch(`${API}/api/scenarios`);
+            const list  = listR.ok ? await listR.json() : [];
+            const sc    = list.find((s:any) => String(s.id)===id);
+            const title = sc?.title || "English Practice";
+            const desc  = sc?.description || "";
+            if (!alive) return;
+            setScenarioCtx({ title, description: desc });
+
+            const openR = await authFetch(`${API}/api/chat/open`, {
+              method:"POST", headers:{"Content-Type":"application/json"},
+              body: JSON.stringify({ scenarioTitle:title, scenarioDescription:desc }),
+            });
+            if (!alive) return;
+            const openData = openR.ok ? await openR.json() : null;
+            setMsgs([{role:"assistant",content:openData?.content||`Welcome to ${title}! Let's get started. Are you ready?`}]);
+          } catch {
+            if (!alive) return;
+            setMsgs([{role:"assistant",content:"Welcome! Let's start practicing English. Are you ready?"}]);
+          }
+        }
       }
     })();
     return () => { alive=false; ctrl.abort(); };
@@ -196,14 +228,16 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
   const doTranscribe=async(blob:Blob)=>{
     if (ended) return;
     const fd=new FormData();
-    fd.append("audio",blob,"speech.wav"); fd.append("language","en");
+    fd.append("audio",blob,"speech.wav");
+    // Tidak kirim language — biarkan Whisper auto-detect agar transkripsi apa adanya
+    // (bukan ditranslate ke English, penting untuk penilaian pronunciation yang akurat)
     try {
       const r=await authFetchForm(`${API}/api/transcribe`,fd);
       if (!r.ok) throw new Error(await r.text());
       const d=await r.json();
       const t=d?.text||"";
       setTranscript(t);
-      if (d?.audio_path) setAudioPath(d.audio_path);
+      if (d?.audio_path) setAudioPaths(p => [...p, d.audio_path]);
       if (t) await sendToAI(t);
       else setMsgs(p=>[...p,{role:"assistant",content:"Suara tidak terdengar jelas. Coba lagi."}]);
     } catch { setMsgs(p=>[...p,{role:"assistant",content:"Transcription gagal. Coba lagi."}]); }
@@ -216,7 +250,13 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
     try {
       const r=await authFetch(`${API}/api/chat`,{
         method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({scenarioId:isAgent?"agent":id, messages:newMsgs}),
+        body:JSON.stringify({
+          scenarioId:          isAgent?"agent":id,
+          scenarioTitle:       isAgent ? (agentTitle||"AI Plan") : scenarioCtx.title,
+          scenarioDescription: isAgent ? "" : scenarioCtx.description,
+          agentSystemCtx:      isAgent ? agentSystemCtx : undefined,
+          messages:            newMsgs,
+        }),
       });
       if (!r.ok) throw new Error();
       const d=await r.json();
@@ -256,7 +296,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
             score_range:clip(s.range), score_accuracy:clip(s.accuracy),
             score_fluency:clip(s.fluency), score_coherence:clip(s.coherence),
             score_phonology:clip(s.phonology), comment:fbJson.comment||"", duration_min:dur,
-            audio_path:audioPath,
+            audio_paths:audioPaths,   // kirim semua turn — backend concatenate jadi satu file
           }),
         });
       } else { setFbRaw(fbJson?.content||"Tidak ada feedback yang dihasilkan."); }
@@ -297,7 +337,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
     try { window.speechSynthesis?.cancel(); } catch {}
     if (isAgent&&planData?.scenario) setAgentTitle(planData.scenario);
     setEnded(false); setFeedback(null); setFbRaw(""); setDescriptors(null); setObjective(null);
-    setReflectData(null); setPlanData(null); setTranscript(""); setAudioPath(null); setStartAt(Date.now());
+    setReflectData(null); setPlanData(null); setTranscript(""); setAudioPaths([]); setStartAt(Date.now());
     setMsgs([{role:"assistant",content:starter||(isAgent?"Let's continue!":mapOpen(id))}]);
   };
 
@@ -306,9 +346,11 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
     try { audioRef.current?.cleanup(); } catch {}
   },[]);
 
-  if (!mounted) return null;
+  if (!mounted) return <div style={{ minHeight:"100vh", background:"var(--bg)" }} />;
 
-  const sessionTitle = isAgent ? agentTitle||"Rencana Latihan AI" : mapTitle(id);
+  const sessionTitle = isAgent
+    ? agentTitle||"Rencana Latihan AI"
+    : scenarioCtx.title || mapTitle(id);
   const card = { background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"20px" };
 
   const statusLabel = thinking?"AI menjawab…":isRec?"Mendengarkan…":ended?"Selesai":"Berlangsung";
@@ -392,19 +434,32 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
                   <div className="space-y-5">
                     {feedback.comment&&(
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color:"var(--text3)" }}>Komentar</p>
-                        <p className="text-sm leading-relaxed" style={{ color:"var(--text2)" }}>{feedback.comment}</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-widest mb-4" style={{ color:"var(--text3)" }}>
+                          Komentar
+                        </p>
+                        {/* Lead paragraph — border kiri accent, terasa seperti laporan yang ditulis, bukan ditempel */}
+                        <div className="pl-4 border-l-2" style={{ borderColor:"var(--accent)" }}>
+                          <p style={{ fontSize:15, lineHeight:1.75, color:"var(--text2)" }}>
+                            {feedback.comment}
+                          </p>
+                        </div>
                       </div>
                     )}
                     {descriptors&&(
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color:"var(--text3)" }}>Deskriptor CEFR</p>
-                        <div className="space-y-2">
-                          {(Object.entries(descriptors) as [string,string][]).map(([k,v])=>v&&(
-                            <p key={k} className="text-sm" style={{ color:"var(--text2)" }}>
-                              <span className="font-semibold" style={{ color:"var(--accent)" }}>{DIM[k]||k}: </span>
-                              {v}
-                            </p>
+                        <p className="text-[11px] font-semibold uppercase tracking-widest mb-4" style={{ color:"var(--text3)" }}>
+                          Deskriptor CEFR
+                        </p>
+                        {/* Structured entries — label dimensi sebagai eyebrow, divider antar item */}
+                        <div>
+                          {(Object.entries(descriptors) as [string,string][]).map(([k,v],idx)=>v&&(
+                            <div key={k} className={idx>0 ? "mt-3 pt-3 border-t" : ""}
+                              style={idx>0 ? { borderColor:"var(--border)" } : {}}>
+                              <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color:"var(--accent)" }}>
+                                {DIM[k]||k}
+                              </p>
+                              <p className="text-sm leading-relaxed" style={{ color:"var(--text2)" }}>{v}</p>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -575,8 +630,17 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
                   <button onClick={startRec} disabled={thinking||fbLoading}
                     className="flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-sm font-medium border transition-all active:scale-[0.98] disabled:opacity-40"
                     style={{ color:"var(--text2)", background:"var(--surface)", borderColor:"var(--border2)" }}
-                    onMouseEnter={e=>{if(!thinking&&!fbLoading){e.currentTarget.style.borderColor="var(--accent)"; e.currentTarget.style.color="var(--accent)";} }}
-                    onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border2)"; e.currentTarget.style.color="var(--text2)"; }}>
+                    onMouseEnter={e=>{if(!thinking&&!fbLoading){
+                      e.currentTarget.style.borderColor="var(--accent)";
+                      e.currentTarget.style.color="var(--accent)";
+                      /* Glow halus saat hover — memberitahu user tombol ini interaktif */
+                      e.currentTarget.style.boxShadow="0 0 0 3px rgba(0,200,150,0.10),0 4px 20px rgba(0,200,150,0.08)";
+                    }}}
+                    onMouseLeave={e=>{
+                      e.currentTarget.style.borderColor="var(--border2)";
+                      e.currentTarget.style.color="var(--text2)";
+                      e.currentTarget.style.boxShadow="none";
+                    }}>
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
                       style={{ background:"var(--accent)" }}>
                       <Icon.Mic width={14} height={14} style={{ stroke:"#0c0c10" }} />
@@ -589,7 +653,8 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
                     className="flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-sm font-medium border transition-all active:scale-[0.98]"
                     style={{ color:"var(--danger)", background:"rgba(239,68,68,0.06)", borderColor:"rgba(239,68,68,0.3)" }}>
                     <div className="relative w-8 h-8 flex-shrink-0">
-                      <div className="absolute inset-0 rounded-xl animate-ping" style={{ background:"rgba(239,68,68,0.2)" }} />
+                      {/* Ripple organik — lebih smooth dari ping default Tailwind */}
+                      <div className="absolute inset-0 rounded-xl" style={{ background:"rgba(239,68,68,0.2)", animation:"ripple 1.8s ease-out infinite" }} />
                       <div className="relative w-8 h-8 rounded-xl flex items-center justify-center border"
                         style={{ background:"rgba(239,68,68,0.12)", borderColor:"rgba(239,68,68,0.3)" }}>
                         <div className="w-3 h-3 rounded-sm" style={{ background:"var(--danger)" }} />
@@ -661,7 +726,10 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
         </div>
       </div>
 
-      <style>{`@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}`}</style>
+      <style>{`
+        @keyframes bounce  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+        @keyframes ripple  { 0%{transform:scale(1);opacity:.55} 100%{transform:scale(1.75);opacity:0} }
+      `}</style>
     </div>
   );
 }

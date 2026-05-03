@@ -53,7 +53,7 @@ export default function PracticePage() {
   }, [mounted, API]);
 
   const fmt = useMemo(() => new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short"}), []);
-  if (!mounted) return null;
+  if (!mounted) return <div style={{ minHeight:"100vh", background:"var(--bg)" }} />;
 
   const card = { background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"20px" };
 
@@ -75,10 +75,14 @@ export default function PracticePage() {
               Unit Bahasa · Platform Aktif
             </span>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-none mb-4" style={{ color:"var(--text)" }}>
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-none mb-3" style={{ color:"var(--text)" }}>
             Latihan berbicara<br />
             <span style={{ color:"var(--accent)" }}>bahasa Inggris.</span>
           </h1>
+          {/* Tagline — italic ringan, soul kecil yang membedakan dari platform generik */}
+          <p className="text-sm italic mb-5" style={{ color:"var(--text3)", fontWeight:300 }}>
+            Untuk mahasiswa Unit Bahasa Poltek SSN — latih, ukur, berkembang.
+          </p>
           <p className="text-lg max-w-xl leading-relaxed mb-7" style={{ color:"var(--text2)" }}>
             Pilih skenario atau biarkan AI memilihkan latihan terbaik berdasarkan progresmu.
           </p>
@@ -119,31 +123,35 @@ export default function PracticePage() {
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(4)].map((_,i) => (
-                <div key={i} className="h-48 rounded-[20px] animate-pulse" style={{ background:"var(--surface)", border:"1px solid var(--border)" }} />
-              ))}
+            /* Skeleton — 2-col asymmetric sama dengan layout akhir */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="h-64 rounded-[20px] animate-pulse" style={{ background:"var(--surface)", border:"1px solid var(--border)" }} />
+              <div className="flex flex-col gap-3">
+                {[...Array(3)].map((_,i) => (
+                  <div key={i} className="h-[72px] rounded-[16px] animate-pulse" style={{ background:"var(--surface)", border:"1px solid var(--border)" }} />
+                ))}
+              </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Agent card */}
+            /* 2-col: AI Plan (kiri, tinggi penuh) + scenario cards compact (kanan, stacked) */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+
+              {/* AI Plan — kiri, generous whitespace karena sendiri di kolom */}
               <Link href="/practice/agent"
-                className="lg:col-span-2 group rounded-[20px] p-7 block border transition-all hover:opacity-95"
+                className="group rounded-[20px] p-8 block border transition-all hover:opacity-95 h-full"
                 style={{ background:"var(--accent-dim)", borderColor:"var(--accent-border)" }}
                 onMouseEnter={e=>(e.currentTarget.style.borderColor="var(--accent)")}
                 onMouseLeave={e=>(e.currentTarget.style.borderColor="var(--accent-border)")}>
-                <div className="flex items-start justify-between mb-5">
+                <div className="flex items-start justify-between mb-6">
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
                     style={{ background:"var(--accent)" }}>
                     <Icon.Bolt width={22} height={22} style={{ color:"white", opacity:.2 }} />
                   </div>
-                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full text-white"
-                    style={{ background:"var(--accent)" }}>
-                    AI
-                  </span>
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
+                    style={{ background:"var(--accent)", color:"#0c0c10" }}>AI</span>
                 </div>
-                <h3 className="text-lg font-bold mb-2" style={{ color:"var(--text)" }}>My Plan — AI Mode</h3>
-                <p className="text-sm leading-relaxed mb-5 max-w-xs" style={{ color:"var(--text2)" }}>
+                <h3 className="text-xl font-bold mb-2" style={{ color:"var(--text)" }}>My Plan — AI Mode</h3>
+                <p className="text-sm leading-relaxed mb-6" style={{ color:"var(--text2)" }}>
                   AI menganalisis progresmu dan memilihkan skenario + latihan yang paling dibutuhkan secara otomatis.
                 </p>
                 <div className="flex items-center gap-2 text-sm font-semibold group-hover:gap-3 transition-all"
@@ -152,39 +160,40 @@ export default function PracticePage() {
                 </div>
               </Link>
 
-              {/* Scenario cards */}
-              {scenarios.map(s => {
-                const accent = SC_ACCENT[s.id] || "var(--accent)";
-                const tag    = SC_TAG[s.id]    || "Umum";
-                return (
-                  <Link key={s.id} href={`/practice/${s.id}`}
-                    className="group rounded-[20px] p-7 block border transition-all"
-                    style={{ ...card }}
-                    onMouseEnter={e=>{ e.currentTarget.style.borderColor=`${accent}50`; e.currentTarget.style.background="var(--surface2)"; }}
-                    onMouseLeave={e=>{ e.currentTarget.style.borderColor="var(--border)"; e.currentTarget.style.background="var(--surface)"; }}>
-                    <div className="mb-5">
-                      <span className="inline-block text-xs font-semibold px-2.5 py-1 rounded-full mb-4 border"
-                        style={{ color:accent, background:`${accent}12`, borderColor:`${accent}30` }}>
-                        {tag}
-                      </span>
-                      <h3 className="font-bold mb-2" style={{ color:"var(--text)" }}>{s.title}</h3>
-                      <p className="text-sm leading-relaxed line-clamp-3" style={{ color:"var(--text2)" }}>
-                        {s.description || ""}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm font-semibold group-hover:gap-3 transition-all"
-                      style={{ color:accent }}>
-                      Mulai <Icon.Arrow width={12} height={12} />
-                    </div>
-                  </Link>
-                );
-              })}
-
-              {!loading && scenarios.length===0 && (
-                <div className="col-span-full py-14 text-center text-sm" style={{ color:"var(--text3)" }}>
-                  Belum ada skenario. Hubungi admin Unit Bahasa.
-                </div>
-              )}
+              {/* Kanan: scenario cards compact stacked — lebih editorial, tidak bersaing dengan AI card */}
+              <div className="flex flex-col gap-3">
+                {scenarios.length === 0 ? (
+                  <div className="py-14 text-center text-sm" style={{ color:"var(--text3)" }}>
+                    Belum ada skenario. Hubungi admin Unit Bahasa.
+                  </div>
+                ) : scenarios.map(s => {
+                  const accent = SC_ACCENT[s.id] || "var(--accent)";
+                  const tag    = SC_TAG[s.id]    || "Umum";
+                  return (
+                    <Link key={s.id} href={`/practice/${s.id}`}
+                      className="group block rounded-[16px] px-5 py-4 border transition-all"
+                      style={{ ...card }}
+                      onMouseEnter={e=>{ e.currentTarget.style.borderColor=`${accent}50`; e.currentTarget.style.background="var(--surface2)"; }}
+                      onMouseLeave={e=>{ e.currentTarget.style.borderColor="var(--border)"; e.currentTarget.style.background="var(--surface)"; }}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 border"
+                            style={{ color:accent, background:`${accent}12`, borderColor:`${accent}30` }}>
+                            {tag}
+                          </span>
+                          <h3 className="text-sm font-semibold truncate" style={{ color:"var(--text)" }}>{s.title}</h3>
+                        </div>
+                        <Icon.Arrow width={12} height={12} className="flex-shrink-0 group-hover:translate-x-0.5 transition-transform" style={{ color:accent }} />
+                      </div>
+                      {s.description && (
+                        <p className="text-xs mt-1.5 line-clamp-1 pl-[calc(theme(spacing.2)+theme(spacing.3)+2rem)]" style={{ color:"var(--text3)" }}>
+                          {s.description}
+                        </p>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           )}
         </section>
@@ -211,37 +220,57 @@ export default function PracticePage() {
                 ))}
               </div>
             ) : (
+              /* Timeline asimetris: tanggal di kiri, dot penanda, latest dibedakan */
               <div className="rounded-[20px] overflow-hidden" style={card}>
-                <div style={{ borderColor:"var(--border)" }}>
-                  {recent.map(r => {
-                    const col  = scoreCol(r.score_overall);
-                    const d    = new Date(r.created_at);
-                    return (
-                      <div key={r.id}
-                        className="flex items-center gap-4 px-5 py-4 border-b last:border-0 transition-colors"
-                        style={{ borderColor:"var(--border)" }}
-                        onMouseEnter={e=>(e.currentTarget.style.background="var(--surface2)")}
-                        onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0"
-                          style={{ background:`${col}14`, color:col }}>
-                          {r.score_overall.toFixed(1)}
-                        </div>
+                {recent.map((r, idx) => {
+                  const col      = scoreCol(r.score_overall);
+                  const d        = new Date(r.created_at);
+                  const isLatest = idx === 0;
+                  return (
+                    <div key={r.id}
+                      className="flex items-center gap-0 border-b last:border-0 transition-colors"
+                      style={{
+                        borderColor: "var(--border)",
+                        background: isLatest ? "var(--surface2)" : "transparent",
+                      }}
+                      onMouseEnter={e=>(e.currentTarget.style.background="var(--surface2)")}
+                      onMouseLeave={e=>(e.currentTarget.style.background= isLatest ? "var(--surface2)" : "transparent")}>
+
+                      {/* Kolom tanggal — KIRI (asimetris vs posisi kanan sebelumnya) */}
+                      <div className="w-16 flex-shrink-0 px-4 py-4 text-right">
+                        <span className="text-[10px] tabular-nums leading-tight block" style={{ color:"var(--text3)" }}>
+                          {isNaN(d.getTime()) ? "—" : fmt.format(d)}
+                        </span>
+                        {isLatest && (
+                          <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color:"var(--accent)" }}>
+                            baru
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Dot timeline */}
+                      <div className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: isLatest ? col : "var(--border2)" }} />
+
+                      {/* Konten */}
+                      <div className="flex-1 min-w-0 flex items-center gap-3 px-4 py-4">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate" style={{ color:"var(--text)" }}>{r.scenario}</p>
+                          <p className="text-sm truncate" style={{ color:"var(--text)", fontWeight: isLatest ? 600 : 500 }}>
+                            {r.scenario}
+                          </p>
                           <div className="flex items-center gap-2 mt-1">
                             <div className="w-20 h-1.5 rounded-full" style={{ background:"var(--border2)" }}>
                               <div className="h-full rounded-full" style={{ width:`${toP(r.score_overall)}%`, background:col }} />
                             </div>
-                            <span className="text-xs font-medium" style={{ color:col }}>{cefrKey(r.score_overall)}</span>
+                            <span className="text-xs font-semibold tabular-nums" style={{ color:col }}>
+                              {r.score_overall.toFixed(1)} · {cefrKey(r.score_overall)}
+                            </span>
                           </div>
                         </div>
-                        <span className="text-xs whitespace-nowrap flex-shrink-0" style={{ color:"var(--text3)" }}>
-                          {isNaN(d.getTime()) ? "—" : fmt.format(d)}
-                        </span>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>

@@ -10,7 +10,7 @@ from .config import API_PREFIX, ALLOWED_ORIGINS, GROQ_API_KEY
 from .database import engine, SessionLocal, sqlite_add_column_if_missing
 from .models import Base
 from .seed import seed_scenarios, seed_admin
-from .routers import auth, admin, scenarios, sessions, chat, feedback, agent, profile, validation
+from .routers import auth, admin, scenarios, sessions, chat, feedback, agent, profile, validation, rater
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -78,6 +78,7 @@ app.include_router(feedback.router,  prefix=API_PREFIX)
 app.include_router(agent.router,     prefix=API_PREFIX)
 app.include_router(profile.router,   prefix=API_PREFIX)
 app.include_router(validation.router, prefix=API_PREFIX)
+app.include_router(rater.router,     prefix=API_PREFIX)
 
 
 # Serve static audio files

@@ -166,53 +166,53 @@ def calculate_correlations(
                     r1_scores[d].append(r1_val)
                     r2_scores[d].append(r2_val)
 
-    # Calculate Pearson correlations
+    import math
+
+    def safe_pearson(x, y):
+        """Return (r, p) as safe floats, or None if undefined (constant input or too few points)."""
+        if len(x) < 3:
+            return None
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            r, p = stats.pearsonr(x, y)
+        if math.isnan(r) or math.isinf(r):
+            return None
+        return round(float(r), 3), round(float(p), 4)
+
+    # Calculate Pearson correlations per dimension
     for d in dimensions:
-        if len(ai_scores[d]) >= 3:
-            r_ai_r1, p_ai_r1 = stats.pearsonr(ai_scores[d], r1_scores[d])
-            r_ai_r2, p_ai_r2 = stats.pearsonr(ai_scores[d], r2_scores[d])
-            r_r1_r2, p_r1_r2 = stats.pearsonr(r1_scores[d], r2_scores[d])
+        n = len(ai_scores[d])
+        if n < 3:
+            continue
 
-            result["ai_vs_rater1"][d] = {
-                "r": round(r_ai_r1, 3),
-                "p_value": round(p_ai_r1, 4),
-                "n": len(ai_scores[d]),
-            }
-            result["ai_vs_rater2"][d] = {
-                "r": round(r_ai_r2, 3),
-                "p_value": round(p_ai_r2, 4),
-                "n": len(ai_scores[d]),
-            }
-            result["rater1_vs_rater2"][d] = {
-                "r": round(r_r1_r2, 3),
-                "p_value": round(p_r1_r2, 4),
-                "n": len(ai_scores[d]),
-            }
+        res_ai_r1 = safe_pearson(ai_scores[d], r1_scores[d])
+        res_ai_r2 = safe_pearson(ai_scores[d], r2_scores[d])
+        res_r1_r2 = safe_pearson(r1_scores[d], r2_scores[d])
 
-    # Calculate overall correlations
+        if res_ai_r1:
+            result["ai_vs_rater1"][d] = {"r": res_ai_r1[0], "p_value": res_ai_r1[1], "n": n}
+        if res_ai_r2:
+            result["ai_vs_rater2"][d] = {"r": res_ai_r2[0], "p_value": res_ai_r2[1], "n": n}
+        if res_r1_r2:
+            result["rater1_vs_rater2"][d] = {"r": res_r1_r2[0], "p_value": res_r1_r2[1], "n": n}
+
+    # Calculate overall correlations (pool all dimensions)
     all_ai = [v for vals in ai_scores.values() for v in vals]
     all_r1 = [v for vals in r1_scores.values() for v in vals]
     all_r2 = [v for vals in r2_scores.values() for v in vals]
 
     if len(all_ai) >= 3:
-        r_overall_ai_r1, p_overall_ai_r1 = stats.pearsonr(all_ai, all_r1)
-        r_overall_ai_r2, p_overall_ai_r2 = stats.pearsonr(all_ai, all_r2)
-        r_overall_r1_r2, p_overall_r1_r2 = stats.pearsonr(all_r1, all_r2)
+        res_ov_ai_r1 = safe_pearson(all_ai, all_r1)
+        res_ov_ai_r2 = safe_pearson(all_ai, all_r2)
+        res_ov_r1_r2 = safe_pearson(all_r1, all_r2)
 
-        result["ai_vs_rater1"]["overall"] = {
-            "r": round(r_overall_ai_r1, 3),
-            "p_value": round(p_overall_ai_r1, 4),
-            "n": len(all_ai),
-        }
-        result["ai_vs_rater2"]["overall"] = {
-            "r": round(r_overall_ai_r2, 3),
-            "p_value": round(p_overall_ai_r2, 4),
-            "n": len(all_ai),
-        }
-        result["rater1_vs_rater2"]["overall"] = {
-            "r": round(r_overall_r1_r2, 3),
-            "p_value": round(p_overall_r1_r2, 4),
-            "n": len(all_ai),
-        }
+        n_all = len(all_ai)
+        if res_ov_ai_r1:
+            result["ai_vs_rater1"]["overall"] = {"r": res_ov_ai_r1[0], "p_value": res_ov_ai_r1[1], "n": n_all}
+        if res_ov_ai_r2:
+            result["ai_vs_rater2"]["overall"] = {"r": res_ov_ai_r2[0], "p_value": res_ov_ai_r2[1], "n": n_all}
+        if res_ov_r1_r2:
+            result["rater1_vs_rater2"]["overall"] = {"r": res_ov_r1_r2[0], "p_value": res_ov_r1_r2[1], "n": n_all}
 
     return result

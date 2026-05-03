@@ -6,7 +6,7 @@ import { useTheme, Icon } from "@/components/shared";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, RadarChart, Radar,
-  PolarGrid, PolarAngleAxis, PolarRadiusAxis, BarChart, Bar,
+  PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -19,7 +19,8 @@ type UserAnalytics = {
 };
 type Scenario = { id:number; title:string; description:string|null };
 type User     = { id:number; username:string; email:string; full_name:string|null; role:string; is_active:boolean; created_at:string; last_login_at:string|null };
-type Tab      = "analytics" | "users" | "scenarios";
+type Session  = { id:number; scenario:string; audio_path:string|null; duration_min:number; created_at:string; ai_scores:Record<string,number>; rater_scores:Record<number,Record<string,number>>; rating_status:{rater_1_done:boolean;rater_2_done:boolean;both_done:boolean} };
+type Tab      = "analytics" | "users" | "scenarios" | "rater";
 type Dim      = "overall"|"range"|"accuracy"|"fluency"|"coherence"|"phonology";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -35,6 +36,13 @@ const DIM_OPTS: { key: Dim; label: string }[] = [
 const DIM_ID: Record<string,string> = {
   range:"Kosakata", accuracy:"Tata Bahasa", fluency:"Kelancaran", coherence:"Koherensi", phonology:"Pelafalan",
 };
+const RATER_DIMS = [
+  { key:"range",     label:"Kosakata" },
+  { key:"accuracy",  label:"Tata Bahasa" },
+  { key:"fluency",   label:"Kelancaran" },
+  { key:"coherence", label:"Koherensi" },
+  { key:"phonology", label:"Pelafalan" },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function cefrKey(s:number){ if(s>=4.5)return"C1+"; if(s>=3.5)return"B2"; if(s>=2.5)return"B1"; if(s>=1.5)return"A2"; return"A1"; }
@@ -94,6 +102,17 @@ export default function AdminPage() {
   const [username,   setUsername]   = useState("");
   const [mounted,    setMounted]    = useState(false);
 
+  // ── Rater tab state ──────────────────────────────────────────────────────────
+  const [raterSessions,    setRaterSessions]    = useState<Session[]>([]);
+  const [raterLoading,     setRaterLoading]     = useState(false);
+  const [selectedRaterSes, setSelectedRaterSes] = useState<Session|null>(null);
+  const [raterNum,         setRaterNum]         = useState<1|2>(1);
+  const [raterScores,      setRaterScores]      = useState<Record<string,number>>({});
+  const [raterNotes,       setRaterNotes]       = useState("");
+  const [raterSaving,      setRaterSaving]      = useState(false);
+  const [correlations,     setCorrelations]     = useState<any>(null);
+  const [corrLoading,      setCorrLoading]      = useState(false);
+
   useEffect(() => {
     setMounted(true);
     if (!TokenStore.isLoggedIn()) { window.location.href="/auth"; return; }
@@ -102,6 +121,16 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => { if (mounted) fetchAll(); }, [mounted]);
+  useEffect(() => { if (tab==="rater" && mounted && raterSessions.length===0) loadRaterSessions(); }, [tab, mounted]);
+  useEffect(() => {
+    if (!selectedRaterSes) return;
+    const existing = selectedRaterSes.rater_scores[raterNum];
+    if (existing) {
+      const pf: Record<string,number> = {};
+      for (const d of RATER_DIMS) { if (existing[d.key]!=null) pf[d.key]=existing[d.key]; }
+      setRaterScores(pf);
+    } else { setRaterScores({}); }
+  }, [raterNum, selectedRaterSes]);
 
   const fetchAll = async () => {
     setLoading(true); setErr(null);
@@ -112,6 +141,8 @@ export default function AdminPage() {
         authFetch(`${API}/api/admin/scenarios`),
       ]);
       if (!aR.ok) throw new Error(`Analytics: ${aR.status}`);
+      if (!uR.ok) throw new Error(`Users: ${uR.status}`);
+      if (!sR.ok) throw new Error(`Scenarios: ${sR.status}`);
       const aData:UserAnalytics[] = await aR.json();
       setAnalytics(aData);
       setUsers(await uR.json());
@@ -123,6 +154,63 @@ export default function AdminPage() {
 
   const flash = (msg:string) => { setSuccess(msg); setTimeout(()=>setSuccess(null),3000); };
 
+  const loadRaterSessions = async () => {
+    setRaterLoading(true);
+    try {
+      const r = await authFetch(`${API}/api/admin/validation/sessions`);
+      if (!r.ok) throw new Error(`Rater sessions: ${r.status}`);
+      setRaterSessions(await r.json());
+    } catch(e:any) { setErr(e?.message); }
+    finally { setRaterLoading(false); }
+  };
+
+  const loadCorrelations = async () => {
+    setCorrLoading(true);
+    try {
+      const r = await authFetch(`${API}/api/admin/validation/correlations`);
+      if (!r.ok) throw new Error(`Correlations: ${r.status}`);
+      setCorrelations(await r.json());
+    } catch(e:any) { setErr(e?.message); }
+    finally { setCorrLoading(false); }
+  };
+
+  const selectRaterSession = (s: Session) => {
+    setSelectedRaterSes(s);
+    const existing = s.rater_scores[raterNum];
+    if (existing) {
+      const pf: Record<string,number> = {};
+      for (const d of RATER_DIMS) { if (existing[d.key]!=null) pf[d.key]=existing[d.key]; }
+      setRaterScores(pf);
+    } else { setRaterScores({}); }
+    setRaterNotes("");
+  };
+
+  const saveRaterScore = async () => {
+    if (!selectedRaterSes) return;
+    setRaterSaving(true);
+    try {
+      const r = await authFetch(`${API}/api/admin/validation/assessments`, {
+        method: "POST",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify({
+          session_id:    selectedRaterSes.id,
+          rater_id:      raterNum,
+          score_range:   raterScores.range    || null,
+          score_accuracy:raterScores.accuracy || null,
+          score_fluency: raterScores.fluency  || null,
+          score_coherence:raterScores.coherence||null,
+          score_phonology:raterScores.phonology||null,
+          notes: raterNotes || null,
+        }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      flash("Penilaian disimpan!");
+      setSelectedRaterSes(null);
+      loadRaterSessions();
+    } catch(e:any) { setErr(e?.message); }
+    finally { setRaterSaving(false); }
+  };
+
   const multiData  = useMemo(() => buildMultiData(analytics, activeDim), [analytics, activeDim]);
   const radarData  = useMemo(() => selected ? [
     {dim:"Kosakata",   value:selected.ma.range},
@@ -132,8 +220,7 @@ export default function AdminPage() {
     {dim:"Pelafalan",  value:selected.ma.phonology},
   ] : [], [selected]);
 
-  const toggleRole = async (u:User) => {
-    const nr = u.role==="admin"?"user":"admin";
+  const setRole = async (u:User, nr:string) => {
     try {
       const r = await authFetch(`${API}/api/admin/users/${u.id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({role:nr})});
       if (!r.ok) throw new Error(await r.text());
@@ -177,7 +264,7 @@ export default function AdminPage() {
     lo();
   };
 
-  if (!mounted) return null;
+  if (!mounted) return <div style={{ minHeight:"100vh", background:"var(--bg)" }} />;
 
   const card = { background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"20px" };
   const inputStyle = {
@@ -206,16 +293,20 @@ export default function AdminPage() {
               <span className="text-sm font-semibold" style={{ color:"var(--text)" }}>SpeakEng</span>
             </Link>
             {/* Nav tabs */}
-            <nav className="hidden md:flex items-center gap-1">
-              {(["analytics","users","scenarios"] as Tab[]).map(t => (
+            {/* Tab nav — uppercase + letter-spacing untuk rasa premium ala Linear */}
+            <nav className="hidden md:flex items-center gap-0.5">
+              {(["analytics","users","scenarios","rater"] as Tab[]).map(t => (
                 <button key={t} onClick={()=>setTab(t)}
-                  className="px-3 py-1.5 rounded-lg text-sm transition-colors"
+                  className="px-3 py-1.5 rounded-lg transition-all"
                   style={{
-                    color:      tab===t?"var(--text)":"var(--text3)",
-                    background: tab===t?"var(--border)":"transparent",
-                    fontWeight: tab===t?500:400,
+                    fontSize:      11,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    fontWeight:    tab===t ? 700 : 500,
+                    color:         tab===t ? "var(--text)" : "var(--text3)",
+                    background:    tab===t ? "var(--border)" : "transparent",
                   }}>
-                  {t==="analytics"?"📈 Progres":t==="users"?`👥 Pengguna (${users.length})`:`📋 Skenario (${scenarios.length})`}
+                  {t==="analytics"?"Progres":t==="users"?`Pengguna (${users.length})`:t==="scenarios"?`Skenario (${scenarios.length})`:"Rater"}
                 </button>
               ))}
             </nav>
@@ -267,28 +358,40 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ── Stats row ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          {[
-            { label:"Total Pengguna",    value:userCount },
-            { label:"Pengguna Aktif",    value:activeCount },
-            { label:"Total Sesi",    value:totalSessions },
-            { label:"Skenario",      value:scenarios.length },
-          ].map(s => (
-            <div key={s.label} className="rounded-2xl p-5" style={card}>
-              <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color:"var(--text3)" }}>{s.label}</p>
-              <p className="text-2xl font-bold" style={{ color:"var(--text)" }}>{s.value}</p>
-            </div>
-          ))}
+        {/* ── Stats row — hero stat kiri, 3 kecil vertikal di kanan ── */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          {/* Hero stat: Total Sesi — angka besar karena ini KPI utama validasi */}
+          <div className="sm:flex-[2] rounded-2xl px-7 py-6" style={card}>
+            <p className="text-[11px] font-semibold uppercase tracking-widest mb-4" style={{ color:"var(--text3)" }}>
+              Total Sesi Latihan
+            </p>
+            <p className="font-black leading-none mb-2" style={{ fontSize:72, color:"var(--text)", lineHeight:1 }}>
+              {totalSessions}
+            </p>
+            <p className="text-xs mt-3" style={{ color:"var(--text3)" }}>sesi tercatat di database</p>
+          </div>
+          {/* 3 stat kecil stacked — density rapat untuk kontras dengan hero */}
+          <div className="sm:flex-1 flex flex-row sm:flex-col gap-3">
+            {[
+              { label:"Pengguna",         value:userCount },
+              { label:"Pengguna Aktif",   value:activeCount },
+              { label:"Skenario",         value:scenarios.length },
+            ].map(s => (
+              <div key={s.label} className="flex-1 rounded-2xl px-4 py-3 flex items-center justify-between gap-4" style={card}>
+                <p className="text-[11px] font-medium uppercase tracking-wider leading-tight" style={{ color:"var(--text3)" }}>{s.label}</p>
+                <p className="text-2xl font-black tabular-nums" style={{ color:"var(--text)", lineHeight:1 }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* ── Mobile tab switcher ── */}
         <div className="flex md:hidden gap-1 mb-6 p-1 rounded-2xl" style={{ background:"var(--surface2)" }}>
-          {(["analytics","users","scenarios"] as Tab[]).map(t=>(
+          {(["analytics","users","scenarios","rater"] as Tab[]).map(t=>(
             <button key={t} onClick={()=>setTab(t)}
               className="flex-1 py-2 rounded-xl text-xs font-medium transition-colors"
               style={{ color:tab===t?"var(--text)":"var(--text3)", background:tab===t?"var(--surface)":"transparent" }}>
-              {t==="analytics"?"Progres":t==="users"?"Pengguna":"Skenario"}
+              {t==="analytics"?"Progres":t==="users"?"Pengguna":t==="scenarios"?"Skenario":"Rater"}
             </button>
           ))}
         </div>
@@ -563,7 +666,11 @@ export default function AdminPage() {
                       <td className="px-5 py-4">
                         <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
                           style={u.role==="admin"
-                            ? {color:"var(--warn)",background:"rgba(245,158,11,0.1)"}
+                            ? {color:"var(--warn)",  background:"rgba(245,158,11,0.1)"}
+                            : u.role==="rater1"
+                            ? {color:"#818cf8",      background:"rgba(129,140,248,0.1)"}
+                            : u.role==="rater2"
+                            ? {color:"#a78bfa",      background:"rgba(167,139,250,0.1)"}
                             : {color:"var(--accent)",background:"var(--accent-dim)"}}>
                           {u.role}
                         </span>
@@ -583,7 +690,29 @@ export default function AdminPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-1.5">
-                          <button onClick={()=>toggleRole(u)} disabled={u.id===1}
+                          {/* Tombol rater1/rater2 — hanya muncul untuk non-admin */}
+                          {u.role !== "admin" && u.role !== "rater1" && (
+                            <button onClick={()=>setRole(u,"rater1")} disabled={u.id===1}
+                              className="px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all disabled:opacity-30 whitespace-nowrap"
+                              style={{ color:"#818cf8", borderColor:"rgba(129,140,248,0.3)", background:"rgba(129,140,248,0.08)" }}>
+                              → Rater 1
+                            </button>
+                          )}
+                          {u.role !== "admin" && u.role !== "rater2" && (
+                            <button onClick={()=>setRole(u,"rater2")} disabled={u.id===1}
+                              className="px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all disabled:opacity-30 whitespace-nowrap"
+                              style={{ color:"#a78bfa", borderColor:"rgba(167,139,250,0.3)", background:"rgba(167,139,250,0.08)" }}>
+                              → Rater 2
+                            </button>
+                          )}
+                          {(u.role==="rater1"||u.role==="rater2") && (
+                            <button onClick={()=>setRole(u,"user")} disabled={u.id===1}
+                              className="px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all disabled:opacity-30 whitespace-nowrap"
+                              style={{ color:"var(--text2)", borderColor:"var(--border2)", background:"var(--surface2)" }}>
+                              → User
+                            </button>
+                          )}
+                          <button onClick={()=>setRole(u, u.role==="admin"?"user":"admin")} disabled={u.id===1}
                             className="px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all disabled:opacity-30 whitespace-nowrap"
                             style={{ color:"var(--text2)", borderColor:"var(--border2)", background:"var(--surface2)" }}
                             onMouseEnter={e=>{ if(u.id!==1){ e.currentTarget.style.borderColor="var(--border)"; e.currentTarget.style.color="var(--text)"; }}}
@@ -611,7 +740,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-        ) : (
+        ) : tab==="scenarios" ? (
 
           /* ══════════════════════
              TAB SCENARIOS
@@ -672,6 +801,322 @@ export default function AdminPage() {
                 )}
               </div>
             </div>
+          </div>
+
+        ) : (
+
+          /* ══════════════════════
+             TAB RATER
+             ══════════════════════ */
+          <div className="space-y-5">
+
+            {/* ── Sessions list + Scoring form ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+              {/* Sessions list */}
+              <div className="rounded-3xl overflow-hidden" style={card}>
+                <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor:"var(--border)" }}>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest" style={{ color:"var(--text3)" }}>
+                      Daftar Sesi ({raterSessions.length})
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color:"var(--text3)" }}>Klik untuk menilai</p>
+                  </div>
+                  <button onClick={loadRaterSessions} disabled={raterLoading}
+                    className="text-xs px-3 py-1.5 rounded-xl border transition-colors disabled:opacity-40"
+                    style={{ color:"var(--text2)", borderColor:"var(--border2)", background:"var(--surface2)" }}>
+                    {raterLoading ? "…" : "Refresh"}
+                  </button>
+                </div>
+                <div className="overflow-y-auto" style={{ maxHeight:520 }}>
+                  {raterLoading ? (
+                    <div className="flex items-center justify-center h-32 gap-2" style={{ color:"var(--text3)" }}>
+                      <Icon.Spinner width={16} height={16} />
+                      <span className="text-sm">Memuat…</span>
+                    </div>
+                  ) : raterSessions.length===0 ? (
+                    <div className="p-8 text-center text-sm" style={{ color:"var(--text3)" }}>
+                      Belum ada sesi dengan rekaman audio
+                    </div>
+                  ) : raterSessions.map(s => (
+                    /* Session item — editorial: judul besar, metadata kecil, badge kanan */
+                    <button key={s.id} onClick={() => selectRaterSession(s)}
+                      className="w-full text-left px-5 py-4 border-b transition-colors"
+                      style={{
+                        borderColor: "var(--border)",
+                        background:  selectedRaterSes?.id===s.id ? "var(--accent-dim)" : "transparent",
+                      }}
+                      onMouseEnter={e => { if(selectedRaterSes?.id!==s.id) e.currentTarget.style.background="var(--surface2)"; }}
+                      onMouseLeave={e => { if(selectedRaterSes?.id!==s.id) e.currentTarget.style.background="transparent"; }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          {/* Judul skenario lebih besar — hierarki visual jelas */}
+                          <p className="text-sm font-semibold leading-snug truncate" style={{ color:"var(--text)" }}>
+                            {s.scenario}
+                          </p>
+                          {/* Metadata sebagai baris kedua kecil */}
+                          <p className="text-[11px] mt-1 tabular-nums" style={{ color:"var(--text3)" }}>
+                            {new Date(s.created_at).toLocaleDateString("id-ID", { day:"numeric", month:"short" })}
+                            <span className="mx-1.5" style={{ color:"var(--border2)" }}>·</span>
+                            {s.duration_min.toFixed(1)} mnt
+                            <span className="mx-1.5" style={{ color:"var(--border2)" }}>·</span>
+                            <span style={{ color:"var(--text3)" }}>#{s.id}</span>
+                          </p>
+                        </div>
+                        {/* Badge di kanan — status langsung terlihat tanpa scanning */}
+                        <div className="flex flex-col gap-1 flex-shrink-0 items-end pt-0.5">
+                          {s.rating_status.rater_1_done && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                              style={{ background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--accent-border)" }}>
+                              R1 ✓
+                            </span>
+                          )}
+                          {s.rating_status.rater_2_done && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                              style={{ background:"rgba(245,158,11,0.1)", color:"var(--warn)", border:"1px solid rgba(245,158,11,0.3)" }}>
+                              R2 ✓
+                            </span>
+                          )}
+                          {!s.rating_status.rater_1_done && !s.rating_status.rater_2_done && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full"
+                              style={{ background:"var(--surface2)", color:"var(--text3)", border:"1px solid var(--border)" }}>
+                              —
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right: Audio + Scoring Form */}
+              {selectedRaterSes ? (
+                <div className="lg:col-span-2 space-y-4">
+
+                  {/* Audio player */}
+                  <div className="rounded-3xl p-6" style={card}>
+                    <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color:"var(--text3)" }}>
+                      Rekaman Audio — {selectedRaterSes.scenario}
+                    </p>
+                    {selectedRaterSes.audio_path ? (
+                      <audio controls className="w-full" style={{ borderRadius:12 }}>
+                        <source src={`${API}/uploads/audio/${selectedRaterSes.audio_path}`} type="audio/wav" />
+                        Browser tidak support audio
+                      </audio>
+                    ) : (
+                      <p className="text-sm" style={{ color:"var(--danger)" }}>Audio tidak tersedia</p>
+                    )}
+                    <div className="grid grid-cols-3 gap-4 mt-4 text-xs">
+                      <div>
+                        <p style={{ color:"var(--text3)" }}>Durasi</p>
+                        <p className="font-semibold" style={{ color:"var(--text)" }}>{selectedRaterSes.duration_min.toFixed(1)} menit</p>
+                      </div>
+                      <div>
+                        <p style={{ color:"var(--text3)" }}>Tanggal</p>
+                        <p className="font-semibold" style={{ color:"var(--text)" }}>{new Date(selectedRaterSes.created_at).toLocaleDateString("id-ID")}</p>
+                      </div>
+                      <div>
+                        <p style={{ color:"var(--text3)" }}>Sesi ID</p>
+                        <p className="font-semibold" style={{ color:"var(--text)" }}>#{selectedRaterSes.id}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Scores reference */}
+                  <div className="rounded-3xl p-6" style={card}>
+                    <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color:"var(--text3)" }}>
+                      Skor AI (referensi)
+                    </p>
+                    <div className="grid grid-cols-5 gap-3">
+                      {RATER_DIMS.map(d => (
+                        <div key={d.key} className="text-center">
+                          <p className="text-xs mb-1" style={{ color:"var(--text3)" }}>{d.label}</p>
+                          <p className="text-xl font-bold" style={{ color:"var(--accent)" }}>
+                            {selectedRaterSes.ai_scores[d.key]?.toFixed(1) || "—"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Scoring form */}
+                  <div className="rounded-3xl p-6" style={card}>
+                    <div className="flex items-center justify-between mb-5">
+                      <p className="text-xs font-semibold uppercase tracking-widest" style={{ color:"var(--text3)" }}>
+                        Penilaian Rater
+                      </p>
+                      <div className="flex gap-2">
+                        {([1,2] as const).map(n => (
+                          <button key={n} onClick={() => setRaterNum(n)}
+                            className="px-4 py-1.5 rounded-xl text-xs font-bold border transition-all"
+                            style={{
+                              color:       raterNum===n ? "#0c0c10" : "var(--text2)",
+                              background:  raterNum===n ? "var(--accent)" : "var(--surface2)",
+                              borderColor: raterNum===n ? "var(--accent)" : "var(--border2)",
+                            }}>
+                            Rater {n}{n===1 ? (selectedRaterSes.rating_status.rater_1_done?" ✓":"") : (selectedRaterSes.rating_status.rater_2_done?" ✓":"")}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {RATER_DIMS.map(d => (
+                        <div key={d.key}>
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="text-sm font-medium" style={{ color:"var(--text)" }}>{d.label}</label>
+                            <span className="text-sm font-bold" style={{ color:"var(--accent)" }}>
+                              {raterScores[d.key]?.toFixed(1) || "—"} / 5
+                            </span>
+                          </div>
+                          <input type="range" min="1" max="5" step="0.5"
+                            value={raterScores[d.key] || 3}
+                            onChange={e => setRaterScores(p => ({ ...p, [d.key]: parseFloat(e.target.value) }))}
+                            className="w-full" />
+                        </div>
+                      ))}
+
+                      <div>
+                        <label className="text-sm font-medium block mb-2" style={{ color:"var(--text)" }}>
+                          Catatan (opsional)
+                        </label>
+                        <textarea value={raterNotes} onChange={e => setRaterNotes(e.target.value)}
+                          rows={2} placeholder="Tulis catatan atau observasi…"
+                          className="w-full px-3 py-2 rounded-xl text-sm"
+                          style={{ background:"var(--surface2)", color:"var(--text)", border:"1px solid var(--border)", outline:"none", resize:"vertical" }} />
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button onClick={() => setSelectedRaterSes(null)}
+                          className="px-5 py-2.5 rounded-2xl text-sm font-medium border transition-all"
+                          style={{ color:"var(--text2)", borderColor:"var(--border2)", background:"var(--surface2)" }}>
+                          Batal
+                        </button>
+                        <button onClick={saveRaterScore} disabled={raterSaving}
+                          className="flex-1 py-2.5 rounded-2xl text-sm font-bold transition-all active:scale-95 disabled:opacity-40"
+                          style={{ background:"var(--accent)", color:"#0c0c10" }}>
+                          {raterSaving ? "Menyimpan…" : "Simpan Penilaian"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Empty state — bukan placeholder, tapi instruksi bermakna */
+                <div className="lg:col-span-2 rounded-3xl px-10 py-12 flex flex-col justify-center" style={card}>
+                  <p className="text-[11px] font-semibold uppercase tracking-widest mb-4" style={{ color:"var(--accent)" }}>
+                    Panduan Penilaian
+                  </p>
+                  <h3 className="text-xl font-bold mb-3 leading-snug" style={{ color:"var(--text)" }}>
+                    Pilih sesi dari daftar untuk mulai menilai
+                  </h3>
+                  <p className="text-sm leading-relaxed mb-8" style={{ color:"var(--text2)", maxWidth:420 }}>
+                    Penilaianmu akan disimpan sebagai <em>ground truth</em> untuk mengukur seberapa akurat sistem AI
+                    menilai kemampuan berbicara mahasiswa. Setiap sesi dinilai oleh dua rater secara independen.
+                  </p>
+                  <div className="space-y-4">
+                    {[
+                      { n:"01", t:"Pilih sesi",           d:"Klik sesi dari daftar yang memiliki rekaman audio" },
+                      { n:"02", t:"Dengarkan rekaman",    d:"Nilai tanpa melihat skor AI terlebih dahulu" },
+                      { n:"03", t:"Beri skor per dimensi",d:"Range · Accuracy · Fluency · Coherence · Phonology" },
+                    ].map(({ n, t, d }) => (
+                      <div key={n} className="flex items-start gap-4">
+                        <span className="text-[11px] font-black tabular-nums pt-0.5 flex-shrink-0"
+                          style={{ color:"var(--accent)", minWidth:20 }}>{n}</span>
+                        <div>
+                          <p className="text-xs font-semibold" style={{ color:"var(--text)" }}>{t}</p>
+                          <p className="text-[11px] mt-0.5" style={{ color:"var(--text3)" }}>{d}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Correlations ── */}
+            <div className="rounded-3xl p-7" style={card}>
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color:"var(--text3)" }}>
+                    Analisis Korelasi
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color:"var(--text3)" }}>
+                    Pearson r antara skor AI dan rater manusia
+                  </p>
+                </div>
+                <button onClick={loadCorrelations} disabled={corrLoading}
+                  className="px-5 py-2 rounded-2xl text-sm font-bold transition-all active:scale-95 disabled:opacity-40"
+                  style={{ background:"var(--accent)", color:"#0c0c10" }}>
+                  {corrLoading ? "Menghitung…" : "Hitung Korelasi"}
+                </button>
+              </div>
+
+              {correlations ? (
+                correlations.sample_size < 3 ? (
+                  <div className="rounded-2xl p-6 text-center" style={{ background:"var(--surface2)" }}>
+                    <p className="text-2xl mb-3">📊</p>
+                    <p className="text-sm font-semibold mb-1" style={{ color:"var(--text)" }}>
+                      Data belum cukup untuk hitung korelasi
+                    </p>
+                    <p className="text-xs mb-4" style={{ color:"var(--text3)" }}>
+                      Korelasi Pearson butuh minimal 3 sesi yang dinilai oleh <strong>kedua rater</strong>.
+                    </p>
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold"
+                        style={{ background:"rgba(0,200,150,0.08)", color:"var(--accent)", border:"1px solid var(--accent-border)" }}>
+                        <span>Sesi dinilai kedua rater</span>
+                        <span className="text-lg font-black">{correlations.sample_size}</span>
+                        <span style={{ color:"var(--text3)" }}>/ min. 3</span>
+                      </div>
+                    </div>
+                    <p className="text-xs mt-4" style={{ color:"var(--text3)" }}>
+                      Pilih sesi di atas, nilai sebagai Rater 1, lalu nilai sesi yang sama sebagai Rater 2 — ulangi untuk minimal 3 sesi.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-xs" style={{ color:"var(--text3)" }}>
+                      n = {correlations.sample_size} sesi dinilai kedua rater · r = korelasi Pearson
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {(["ai_vs_rater1","ai_vs_rater2","rater1_vs_rater2"] as const).map(k => (
+                        <div key={k} className="p-5 rounded-2xl" style={{ background:"var(--surface2)" }}>
+                          <p className="text-xs font-semibold mb-3" style={{ color:"var(--text3)" }}>
+                            {k==="ai_vs_rater1"?"AI vs Rater 1":k==="ai_vs_rater2"?"AI vs Rater 2":"Rater 1 vs Rater 2"}
+                          </p>
+                          <div className="space-y-2">
+                            {RATER_DIMS.map(d => {
+                              const data = correlations[k]?.[d.key];
+                              if (!data) return null;
+                              const col = data.r>0.7?"var(--accent)":data.r>0.5?"var(--warn)":"var(--danger)";
+                              return (
+                                <div key={d.key} className="flex justify-between text-xs">
+                                  <span style={{ color:"var(--text2)" }}>{d.label}</span>
+                                  <span className="font-bold" style={{ color:col }}>r = {data.r.toFixed(3)}</span>
+                                </div>
+                              );
+                            })}
+                            {correlations[k]?.overall && (
+                              <div className="flex justify-between text-xs pt-2 border-t font-bold" style={{ borderColor:"var(--border)" }}>
+                                <span style={{ color:"var(--text)" }}>Overall</span>
+                                <span style={{ color:"var(--accent)" }}>r = {correlations[k].overall.r.toFixed(3)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="text-center py-8 text-sm" style={{ color:"var(--text3)" }}>
+                  Klik "Hitung Korelasi" untuk melihat analisis
+                </div>
+              )}
+            </div>
+
           </div>
         )}
       </main>

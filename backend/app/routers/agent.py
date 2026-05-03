@@ -15,6 +15,7 @@ from ..utils import (
     _weak_focus_from_profile,
     _suggest_scenario_for_focus,
     _make_prompt,
+    _make_agent_opening,
     _groq_json_chat,
 )
 
@@ -26,11 +27,12 @@ def agent_next(
     current_user: dict = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-    user_id  = int(current_user["sub"])
-    prof     = ensure_profile(db, user_id=user_id)
-    focus    = _weak_focus_from_profile(prof)
-    scenario = _suggest_scenario_for_focus(focus)
-    prompt   = _make_prompt(focus, prof.level)
+    user_id      = int(current_user["sub"])
+    prof         = ensure_profile(db, user_id=user_id)
+    focus        = _weak_focus_from_profile(prof)
+    scenario     = _suggest_scenario_for_focus(focus)
+    system_ctx   = _make_prompt(focus, prof.level)          # instruksi internal AI
+    opening      = _make_agent_opening(focus, prof.level, scenario)  # pesan percakapan user
 
     plan = db.execute(
         sa_select(PlanORM)
@@ -55,11 +57,19 @@ def agent_next(
         ).scalar_one()
         item = PlanItemORM(
             plan_id=plan.id, order_idx=(last_idx + 1),
-            scenario=scenario, focus=focus, level=prof.level, prompt=prompt,
+            scenario=scenario, focus=focus, level=prof.level,
+            prompt=opening,  # simpan opening (bukan instruksi)
         )
         db.add(item); db.commit(); db.refresh(item)
 
-    return {"item_id": item.id, "scenario": item.scenario, "level": item.level, "prompt": item.prompt}
+    return {
+        "item_id":      item.id,
+        "scenario":     item.scenario,
+        "level":        item.level,
+        "focus":        focus,
+        "prompt":       opening,      # pesan pertama yang ditampilkan ke user
+        "system_ctx":   system_ctx,   # instruksi internal untuk AI
+    }
 
 
 @router.post("/complete")

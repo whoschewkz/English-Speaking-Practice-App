@@ -180,7 +180,14 @@ export default function AuthPage() {
 
   useEffect(() => {
     setMounted(true);
-    if (TokenStore.isLoggedIn()) router.replace("/practice");
+    if (TokenStore.isLoggedIn()) {
+      const role = TokenStore.getRole();
+      router.replace(
+        role === "admin"  ? "/admin"  :
+        (role === "rater1" || role === "rater2") ? "/rater" :
+        "/practice"
+      );
+    }
   }, [router]);
 
   // Password strength & requirements
@@ -212,7 +219,9 @@ export default function AuthPage() {
       const data = await res.json();
       if (!res.ok) { setErrors({ general: data?.detail || "Login gagal. Periksa username dan password." }); return; }
       TokenStore.set(data.access_token, data.refresh_token, data.role, data.username);
-      window.location.href = data.role === "admin" ? "/admin" : "/practice";
+      window.location.href = data.role === "admin" ? "/admin" :
+        (data.role === "rater1" || data.role === "rater2") ? "/rater" :
+        "/practice";
     } catch {
       setErrors({ general: "Tidak dapat terhubung ke server. Pastikan backend berjalan." });
     } finally {

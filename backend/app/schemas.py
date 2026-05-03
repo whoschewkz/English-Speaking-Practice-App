@@ -11,12 +11,20 @@ class Message(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    scenarioId: Optional[str] = "custom"
-    messages: List[Message] = Field(default_factory=list)
+    scenarioId:          Optional[str] = "custom"
+    scenarioTitle:       Optional[str] = None
+    scenarioDescription: Optional[str] = None
+    agentSystemCtx:      Optional[str] = None   # system context dari agent /next (level + focus)
+    messages:            List[Message] = Field(default_factory=list)
 
     @validator("scenarioId", pre=True)
     def _to_str(cls, v):
         return str(v) if v is not None else "custom"
+
+
+class ChatOpenRequest(BaseModel):
+    scenarioTitle:       str
+    scenarioDescription: Optional[str] = ""
 
 
 class FeedbackIn(BaseModel):
@@ -119,10 +127,11 @@ class SaveSessionIn(BaseModel):
     score_fluency:   float
     score_coherence: float
     score_phonology: float
-    comment:         Optional[str]   = None
-    duration_min:    Optional[float] = 0.0
-    audio_path:      Optional[str]   = None
-    user_id:         Optional[int]   = None  # diisi dari token, bukan dari body
+    comment:         Optional[str]        = None
+    duration_min:    Optional[float]      = 0.0
+    audio_path:      Optional[str]        = None   # backward compat (single)
+    audio_paths:     Optional[List[str]]  = None   # semua recording turn dalam sesi
+    user_id:         Optional[int]        = None   # diisi dari token, bukan dari body
 
 
 class ScenarioIn(BaseModel):

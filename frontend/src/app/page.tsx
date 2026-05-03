@@ -73,17 +73,13 @@ export default function Home() {
               </svg>
             </Link>
           </div>
-          <div className="hero-stats">
-            {[
-              { value:"5",    label:"Dimensi CEFR dinilai" },
-              { value:"A2–C2",label:"Rentang level" },
-              { value:"AI",   label:"LLaMA 3.3 + Whisper" },
-            ].map(s => (
-              <div key={s.label} className="hero-stat">
-                <p className="hero-stat-val">{s.value}</p>
-                <p className="hero-stat-label">{s.label}</p>
-              </div>
-            ))}
+          {/* Stats inline — lebih ringkas, dot separator sebagai ritme visual */}
+          <div className="hero-stats-inline">
+            <span className="hero-stat-chip"><strong>5</strong> dimensi CEFR</span>
+            <span className="hero-stat-sep">·</span>
+            <span className="hero-stat-chip">Rentang <strong>A2–C2</strong></span>
+            <span className="hero-stat-sep">·</span>
+            <span className="hero-stat-chip"><strong>LLaMA 3.3</strong> + Whisper</span>
           </div>
         </div>
       </section>
@@ -158,6 +154,7 @@ export default function Home() {
 
       {/* ── How it works ── */}
       <section className="section-wrap">
+        {/* Left-aligned — variasi dari section lain yang center */}
         <div className="how-head">
           <p className="section-eyebrow">Cara kerja</p>
           <h2 className="section-title">Mulai dalam 3 langkah</h2>
@@ -303,10 +300,15 @@ export default function Home() {
           display: flex; justify-content: center;
           gap: 10px; flex-wrap: wrap; margin-bottom: 40px;
         }
-        .hero-stats { display: flex; justify-content: center; gap: 32px; flex-wrap: wrap; }
-        .hero-stat { text-align: center; }
-        .hero-stat-val   { margin: 0; font-size: 22px; font-weight: 800; color: var(--accent); }
-        .hero-stat-label { margin: 2px 0 0; font-size: 11px; color: var(--text3); }
+        /* Inline stats — separator dot, tidak butuh kolom sejajar */
+        .hero-stats-inline {
+          display: flex; align-items: center; justify-content: center;
+          flex-wrap: wrap; gap: 4px 6px;
+          font-size: 12px; color: var(--text3);
+        }
+        .hero-stat-chip { white-space: nowrap; }
+        .hero-stat-chip strong { color: var(--text2); font-weight: 700; }
+        .hero-stat-sep { color: var(--border2); font-size: 18px; line-height: 1; padding: 0 2px; }
 
         /* ─ Section shared ─ */
         .section-wrap { max-width: 1152px; margin: 0 auto; padding: 0 24px 64px; }
@@ -397,34 +399,47 @@ export default function Home() {
         .feature-desc  { margin: 0; font-size: 12px; color: var(--text2); line-height: 1.55; }
 
         /* ─ How ─ */
-        .how-head { text-align: center; margin-bottom: 28px; }
-        .how-head .section-eyebrow { display: inline-block; }
+        /* Left-align untuk variasi dari section lain yang center */
+        .how-head { text-align: left; margin-bottom: 48px; }
         .how-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 16px;
+          gap: 0 40px;
         }
+        /* Hapus card box — hanya border kiri sebagai separator */
         .how-card {
-          background: var(--surface); border: 1px solid var(--border);
-          border-radius: 20px; padding: 24px 20px;
+          background: none; border: none; border-radius: 0;
+          border-left: 1.5px solid var(--border);
+          padding: 0 0 40px 24px;
         }
+        /* Angka besar editorial — abu-abu muted di atas judul */
         .how-num {
-          width: 32px; height: 32px; border-radius: 10px;
-          background: var(--accent-dim); border: 1px solid var(--accent-border);
-          display: flex; align-items: center; justify-content: center;
-          margin-bottom: 14px;
-          font-size: 14px; font-weight: 800; color: var(--accent);
+          display: block;
+          font-size: 64px; font-weight: 900; line-height: 1;
+          color: var(--border2);
+          letter-spacing: -4px;
+          margin-bottom: 10px;
+          /* Reset old box styles */
+          width: auto; height: auto;
+          border-radius: 0; background: none; border: none;
         }
-        .how-title { margin: 0 0 5px; font-size: 14px; font-weight: 700; color: var(--text); }
-        .how-desc  { margin: 0; font-size: 13px; color: var(--text2); line-height: 1.55; }
+        .how-title { margin: 0 0 8px; font-size: 15px; font-weight: 800; color: var(--text); }
+        .how-desc  { margin: 0; font-size: 13px; color: var(--text2); line-height: 1.6; }
 
         /* ─ CTA ─ */
         .cta-section { background: var(--surface2); border-top: 1px solid var(--border); }
         .cta-banner {
-          background: var(--accent); border-radius: 24px;
+          border-radius: 24px;
           padding: 40px 32px;
           display: flex; flex-wrap: wrap; align-items: center;
           justify-content: space-between; gap: 24px;
+          /* Subtle diagonal-line texture — terasa hand-crafted, bukan flat solid */
+          background-color: var(--accent);
+          background-image: repeating-linear-gradient(
+            -45deg,
+            transparent 0px, transparent 10px,
+            rgba(0,0,0,0.035) 10px, rgba(0,0,0,0.035) 11px
+          );
         }
         .cta-title { margin: 0 0 6px; font-size: 22px; font-weight: 800; color: #0c0c10; }
         .cta-sub   { margin: 0; font-size: 14px; color: rgba(0, 0, 0, 0.55); }

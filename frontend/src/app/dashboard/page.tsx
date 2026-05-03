@@ -21,6 +21,14 @@ const TIPS: Record<string, string> = {
   coherence: "Struktur jawaban: point → reason → example. Gunakan 'first, then, finally'.",
   phonology: "Dengarkan podcast native speaker dan tiru intonasi mereka.",
 };
+// Deskripsi 1 kalimat per level — memberi konteks emosional pada angka CEFR
+const CEFR_DESC: Record<string, string> = {
+  "C1+": "Setara kemampuan akademik dan profesional tinggi.",
+  "B2":  "Mampu berkomunikasi lancar dalam berbagai konteks.",
+  "B1":  "Dapat mengatasi sebagian besar situasi sehari-hari.",
+  "A2":  "Mampu berkomunikasi dalam situasi sederhana.",
+  "A1":  "Kemampuan dasar dalam komunikasi terbatas.",
+};
 function cefrKey(s: number) {
   if (s >= 4.5) return "C1+"; if (s >= 3.5) return "B2"; if (s >= 2.5) return "B1"; if (s >= 1.5) return "A2"; return "A1";
 }
@@ -73,7 +81,10 @@ export default function DashboardPage() {
     : null;
   const fmt = useMemo(() => new Intl.DateTimeFormat("id-ID",{day:"2-digit",month:"short",year:"numeric"}), []);
 
-  if (!mounted) return null;
+  if (!mounted) return <div style={{ minHeight:"100vh", background:"var(--bg)" }} />;
+
+  const hour = new Date().getHours();
+  const timeGreet = hour < 12 ? "pagi" : hour < 18 ? "siang" : "malam";
 
   // Card style helper
   const card = {
@@ -116,13 +127,19 @@ export default function DashboardPage() {
             {/* ── Greeting + CTA ── */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight" style={{ color:"var(--text)" }}>
-                  Hai, <span style={{ color:"var(--accent)" }}>{username}</span> 👋
-                </h1>
-                <p className="text-sm mt-1" style={{ color:"var(--text3)" }}>
+                {/* Micro-text di atas — konteks sesi + waktu, bikin terasa personal */}
+                <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color:"var(--text3)" }}>
                   {profile?.sessions_count
-                    ? `${profile.sessions_count} sesi selesai · Level ${profile.level} · Target ${profile.target_cefr}`
-                    : "Mulai sesi pertamamu hari ini."}
+                    ? `Sesi ke-${profile.sessions_count + 1} · Selamat ${timeGreet}`
+                    : `Selamat ${timeGreet} · Mulai perjalananmu`}
+                </p>
+                <h1 className="text-3xl font-bold tracking-tight" style={{ color:"var(--text)" }}>
+                  Hai, <span style={{ color:"var(--accent)" }}>{username}</span>
+                </h1>
+                <p className="text-sm mt-1.5" style={{ color:"var(--text3)" }}>
+                  {profile?.sessions_count
+                    ? `Level ${profile.level} · Target ${profile.target_cefr}`
+                    : "Selesaikan sesi pertama untuk melihat progresmu."}
                 </p>
               </div>
               <Link href="/practice/agent"
@@ -137,11 +154,20 @@ export default function DashboardPage() {
             <div className="rounded-2xl p-6 border" style={{ ...card, borderColor:"var(--accent-border)", background:"var(--accent-dim)" }}>
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"var(--accent)" }}>Level CEFR</p>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-5xl font-black" style={{ color:"var(--accent)" }}>{cefrKey(overall)}</span>
+                  <p className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color:"var(--accent)" }}>
+                    Level CEFR
+                  </p>
+                  {/* Angka 64px — lebih dramatic, jadi focal point banner */}
+                  <div className="flex items-baseline gap-3 mb-2">
+                    <span className="font-black leading-none" style={{ fontSize:64, color:"var(--accent)", lineHeight:1 }}>
+                      {cefrKey(overall)}
+                    </span>
                     <span className="text-lg font-medium" style={{ color:"var(--text2)" }}>{overall.toFixed(1)}/5</span>
                   </div>
+                  {/* Deskripsi 1 kalimat — bikin angka punya konteks emosional */}
+                  <p className="text-xs leading-relaxed" style={{ color:"var(--accent)", opacity:0.75 }}>
+                    {CEFR_DESC[cefrKey(overall)]}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs mb-1" style={{ color:"var(--text3)" }}>Target</p>
@@ -168,18 +194,33 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* ── Stats ── */}
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label:"Total sesi",   value: String(profile?.sessions_count??0), unit:"sesi" },
-                { label:"Waktu latihan", value: (stats?.total_hours??0).toFixed(1), unit:"jam" },
-                { label:"Skor rata-rata",value: overall.toFixed(1), unit:"/5" },
-              ].map(s => (
-                <div key={s.label} className="rounded-2xl p-5" style={card}>
-                  <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color:"var(--text3)" }}>{s.label}</p>
-                  <p className="text-2xl font-bold" style={{ color:"var(--text)" }}>{s.value}<span className="text-base font-normal ml-0.5" style={{ color:"var(--text3)" }}>{s.unit}</span></p>
+            {/* ── Stats — hero kiri + 2 kecil kanan (sama pola dengan admin) ── */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Hero: Total Sesi — ukuran besar karena menunjukkan konsistensi latihan */}
+              <div className="sm:flex-[2] rounded-2xl px-7 py-6" style={card}>
+                <p className="text-[11px] font-semibold uppercase tracking-widest mb-4" style={{ color:"var(--text3)" }}>
+                  Total Sesi Latihan
+                </p>
+                <p className="font-black leading-none tabular-nums" style={{ fontSize:64, color:"var(--text)", lineHeight:1 }}>
+                  {profile?.sessions_count ?? 0}
+                </p>
+                <p className="text-xs mt-3" style={{ color:"var(--text3)" }}>sesi diselesaikan</p>
+              </div>
+              {/* 2 kecil stacked */}
+              <div className="sm:flex-1 flex flex-row sm:flex-col gap-3">
+                <div className="flex-1 rounded-2xl px-4 py-3 flex items-center justify-between gap-4" style={card}>
+                  <p className="text-[11px] font-medium uppercase tracking-wider leading-tight" style={{ color:"var(--text3)" }}>Waktu Latihan</p>
+                  <p className="text-2xl font-black tabular-nums" style={{ color:"var(--text)", lineHeight:1 }}>
+                    {(stats?.total_hours??0).toFixed(1)}<span className="text-sm font-normal ml-0.5" style={{ color:"var(--text3)" }}>j</span>
+                  </p>
                 </div>
-              ))}
+                <div className="flex-1 rounded-2xl px-4 py-3 flex items-center justify-between gap-4" style={card}>
+                  <p className="text-[11px] font-medium uppercase tracking-wider leading-tight" style={{ color:"var(--text3)" }}>Skor Rata-rata</p>
+                  <p className="text-2xl font-black tabular-nums" style={{ color:"var(--accent)", lineHeight:1 }}>
+                    {overall.toFixed(1)}<span className="text-sm font-normal ml-0.5" style={{ color:"var(--text3)" }}>/5</span>
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* ── CEFR profile + tip ── */}
@@ -188,14 +229,20 @@ export default function DashboardPage() {
               <div className="lg:col-span-3 rounded-2xl p-6" style={card}>
                 <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color:"var(--text3)" }}>Profil kemampuan</p>
                 {profile ? (
-                  <div className="space-y-4">
-                    {(["range","accuracy","fluency","coherence","phonology"] as const).map(d => {
+                  <div>
+                    {(["range","accuracy","fluency","coherence","phonology"] as const).map((d, idx) => {
                       const v = profile.ma[d];
                       const col = scoreCol(v);
                       const isWeak = d === weakDim;
                       return (
-                        <div key={d}>
-                          <div className="flex items-center justify-between mb-1.5">
+                        <div key={d} className={idx > 0 ? "pt-4" : ""}>
+                          {/* Gradient separator — fade dari kiri, hilang di kanan */}
+                          {idx > 0 && (
+                            <div className="mb-4 h-px" style={{
+                              background:"linear-gradient(90deg, var(--border2) 0%, transparent 75%)",
+                            }} />
+                          )}
+                          <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <span className="text-sm" style={{ color:"var(--text2)" }}>{DIM[d]}</span>
                               {isWeak && (
@@ -206,11 +253,12 @@ export default function DashboardPage() {
                               )}
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold" style={{ color:col }}>{v.toFixed(1)}</span>
-                              <span className="text-xs font-semibold w-8 text-right" style={{ color:"var(--text3)" }}>{cefrKey(v)}</span>
+                              <span className="text-sm font-bold tabular-nums" style={{ color:col }}>{v.toFixed(1)}</span>
+                              <span className="text-[11px] font-semibold w-7 text-right" style={{ color:"var(--text3)" }}>{cefrKey(v)}</span>
                             </div>
                           </div>
-                          <div className="h-1.5 rounded-full" style={{ background:"var(--border2)" }}>
+                          {/* Bar h-2 — lebih berbobot dari h-1.5 */}
+                          <div className="h-2 rounded-full" style={{ background:"var(--border2)" }}>
                             <div className="h-full rounded-full transition-all duration-700"
                               style={{ width:`${toP(v)}%`, background: isWeak ? "var(--warn)" : col }} />
                           </div>
