@@ -41,8 +41,13 @@ async def transcribe_audio(
     else:                           content_type = audio.content_type or "audio/wav"
 
     files = {"file": (filename, file_bytes, content_type)}
-    data  = {"model": "whisper-large-v3", "temperature": 0.0, "task": "transcribe"}
-    if language:   # hanya set language kalau eksplisit dikirim, mencegah auto-translate
+    # prompt membantu Whisper prioritaskan English tanpa memaksa translate
+    data  = {
+        "model":       "whisper-large-v3",
+        "temperature": 0.0,
+        "prompt":      "English speaking practice session. The speaker may have an Indonesian accent.",
+    }
+    if language:
         data["language"] = language
 
     # Save audio file
@@ -60,6 +65,7 @@ async def transcribe_audio(
     async with httpx.AsyncClient(timeout=120) as client:
         r = await client.post(url, headers=headers, files=files, data=data)
         if r.status_code != 200:
+            print(f"[TRANSCRIBE ERROR] status={r.status_code} body={r.text[:500]}", flush=True)
             return JSONResponse({"error": "groq_transcribe_failed", "detail": r.text}, status_code=500)
         result = r.json()
 
