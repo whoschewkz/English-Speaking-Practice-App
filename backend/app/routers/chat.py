@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Body, UploadFile, File, Form
 from fastapi.responses import JSONResponse, Response
 
-from ..config import GROQ_API_KEY
+from ..config import GROQ_API_KEY, ELEVENLABS_API_KEY
 from ..schemas import ChatRequest, ChatOpenRequest
 from ..auth import require_user
 
@@ -199,13 +199,13 @@ async def chat_open(
         return {"content": f"Welcome to {req.scenarioTitle}! Let's begin."}
 
 
-# Peta suara per skenario — setiap skenario punya karakter berbeda
+# Peta suara per skenario — ElevenLabs voice IDs (suara lebih natural & stabil)
 _SCENARIO_VOICE: dict[str, str] = {
-    "1":     "George-PlayAI",    # Job Interview   — profesional, formal
-    "2":     "Celeste-PlayAI",   # Daily Conv      — ramah, natural
-    "3":     "Grant-PlayAI",     # Business        — tegas, otoritatif
-    "4":     "Nia-PlayAI",       # Travel          — helpful, jelas
-    "agent": "Fritz-PlayAI",     # AI Mode         — netral, adaptif
+    "1":     "EXAVITQu4vr4xnSDxMaL",  # Job Interview   — Antoni (profesional, formal)
+    "2":     "g0FPH13sSikgrzLIPvQF",  # Daily Conv      — Bella (ramah, natural)
+    "3":     "21m00Tcm4TlvDq8ikWAM",  # Business        — Rachel (tegas, clear)
+    "4":     "pFZP5JQG7iQjIjzIm3Bn",  # Travel          — Elli (helpful, energetic)
+    "agent": "IZSifMMazsLE7O7ub3c9",  # AI Mode         — Charlie (netral, warm)
 }
 
 
@@ -215,31 +215,33 @@ async def text_to_speech(
     scenarioId: str = Body("agent"),
     current_user: dict = Depends(require_user),
 ):
-    """Groq PlayAI TTS — suara natural per skenario, jauh lebih baik dari Web Speech API."""
-    if not GROQ_API_KEY:
-        return JSONResponse({"error": "Missing GROQ_API_KEY"}, status_code=500)
+    """ElevenLabs TTS — suara natural per skenario, lebih stabil & berkualitas tinggi."""
+    if not ELEVENLABS_API_KEY:
+        return JSONResponse({"error": "Missing ELEVENLABS_API_KEY"}, status_code=500)
     try:
         import httpx
     except Exception as e:
         return JSONResponse({"error": "Missing httpx", "detail": str(e)}, status_code=500)
 
-    voice = _SCENARIO_VOICE.get(scenarioId, "Fritz-PlayAI")
+    voice_id = _SCENARIO_VOICE.get(scenarioId, "josh")
 
     try:
-        url     = "https://api.groq.com/openai/v1/audio/speech"
-        headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+        url     = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+        headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
         body    = {
-            "model":           "playai-tts",
-            "input":           text[:4000],   # max input length
-            "voice":           voice,
-            "response_format": "wav",
+            "text": text[:3000],  # ElevenLabs max ~3000 chars per request
+            "model_id": "eleven_multilingual_v2",  # multilingual support untuk English
+            "voice_settings": {
+                "stability": 0.5,
+                "similarity_boost": 0.75,
+            }
         }
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(url, headers=headers, json=body)
             if r.status_code != 200:
-                print(f"[TTS] Groq error {r.status_code}: {r.text[:200]}", flush=True)
+                print(f"[TTS] ElevenLabs error {r.status_code}: {r.text[:200]}", flush=True)
                 return JSONResponse({"error": "tts_failed", "detail": r.text}, status_code=500)
-            return Response(content=r.content, media_type="audio/wav")
+            return Response(content=r.content, media_type="audio/mpeg")
     except Exception as e:
         print(f"[TTS] Exception: {e}", flush=True)
         return JSONResponse({"error": "tts_error", "detail": str(e)}, status_code=500)
