@@ -4,7 +4,7 @@ import traceback
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Body, UploadFile, File, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from ..config import GROQ_API_KEY
 from ..schemas import ChatRequest, ChatOpenRequest
@@ -197,3 +197,49 @@ async def chat_open(
     except Exception as e:
         print(f"[CHAT/OPEN] Error: {e}", file=sys.stderr)
         return {"content": f"Welcome to {req.scenarioTitle}! Let's begin."}
+
+
+# Peta suara per skenario — setiap skenario punya karakter berbeda
+_SCENARIO_VOICE: dict[str, str] = {
+    "1":     "George-PlayAI",    # Job Interview   — profesional, formal
+    "2":     "Celeste-PlayAI",   # Daily Conv      — ramah, natural
+    "3":     "Grant-PlayAI",     # Business        — tegas, otoritatif
+    "4":     "Nia-PlayAI",       # Travel          — helpful, jelas
+    "agent": "Fritz-PlayAI",     # AI Mode         — netral, adaptif
+}
+
+
+@router.post("/tts")
+async def text_to_speech(
+    text:       str = Body(...),
+    scenarioId: str = Body("agent"),
+    current_user: dict = Depends(require_user),
+):
+    """Groq PlayAI TTS — suara natural per skenario, jauh lebih baik dari Web Speech API."""
+    if not GROQ_API_KEY:
+        return JSONResponse({"error": "Missing GROQ_API_KEY"}, status_code=500)
+    try:
+        import httpx
+    except Exception as e:
+        return JSONResponse({"error": "Missing httpx", "detail": str(e)}, status_code=500)
+
+    voice = _SCENARIO_VOICE.get(scenarioId, "Fritz-PlayAI")
+
+    try:
+        url     = "https://api.groq.com/openai/v1/audio/speech"
+        headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+        body    = {
+            "model":           "playai-tts",
+            "input":           text[:4000],   # max input length
+            "voice":           voice,
+            "response_format": "wav",
+        }
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.post(url, headers=headers, json=body)
+            if r.status_code != 200:
+                print(f"[TTS] Groq error {r.status_code}: {r.text[:200]}", flush=True)
+                return JSONResponse({"error": "tts_failed", "detail": r.text}, status_code=500)
+            return Response(content=r.content, media_type="audio/wav")
+    except Exception as e:
+        print(f"[TTS] Exception: {e}", flush=True)
+        return JSONResponse({"error": "tts_error", "detail": str(e)}, status_code=500)

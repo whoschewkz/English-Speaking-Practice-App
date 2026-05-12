@@ -91,18 +91,47 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
   // Context skenario — dipakai di system prompt agar AI tetap on-topic
   const [scenarioCtx,  setScenarioCtx]  = useState<{ title:string; description:string }>({ title:"", description:"" });
 
-  const audioRef  = useRef<AudioProcessor|null>(null);
-  const streamRef = useRef<MediaStream|null>(null);
-  const chatRef   = useRef<HTMLDivElement>(null);
+  const audioRef    = useRef<AudioProcessor|null>(null);
+  const streamRef   = useRef<MediaStream|null>(null);
+  const chatRef     = useRef<HTMLDivElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
-  const abortRef  = useRef<AbortController|null>(null);
+  const abortRef    = useRef<AbortController|null>(null);
+  const ttsAudioRef = useRef<HTMLAudioElement|null>(null);  // referensi audio TTS aktif
 
   useEffect(() => {
     setMounted(true);
     if (!TokenStore.isLoggedIn()) { window.location.href="/auth"; return; }
   }, []);
 
-  useEffect(() => { return () => { try { window.speechSynthesis?.cancel(); } catch {} }; }, []);
+  useEffect(() => { return () => { stopTTS(); }; }, []);
+
+  // Hentikan TTS yang sedang jalan
+  const stopTTS = () => {
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current.src = "";
+      ttsAudioRef.current = null;
+    }
+  };
+
+  // Groq PlayAI TTS — suara natural berbeda per skenario
+  const speakTTS = async (text: string) => {
+    stopTTS();
+    try {
+      const r = await authFetch(`${API}/api/tts`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ text, scenarioId: isAgent ? "agent" : id }),
+      });
+      if (!r.ok) return;
+      const blob = await r.blob();
+      const url  = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      ttsAudioRef.current = audio;
+      audio.onended = () => { URL.revokeObjectURL(url); ttsAudioRef.current = null; };
+      audio.play().catch(() => {});
+    } catch {}
+  };
 
   useEffect(() => {
     if (!chatRef.current) return;
@@ -262,14 +291,14 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
       const d=await r.json();
       const content=d?.content||"Could not generate a reply.";
       setMsgs(p=>[...p,{role:"assistant",content:`${content}\n\n💡 ${tipMsg(userText)}`}]);
-      try { const u=new SpeechSynthesisUtterance(content); u.lang="en-US"; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch {}
+      speakTTS(content);
     } catch { setMsgs(p=>[...p,{role:"assistant",content:"Server error. Coba lagi."}]); }
     finally { setThinking(false); setTranscript(""); }
   };
 
   const endSession=async()=>{
     if (ended||thinking||isRec||fbLoading) return;
-    window.speechSynthesis?.cancel(); hardStop();
+    stopTTS(); hardStop();
     setFbLoading(true); setFeedback(null); setFbRaw(""); setDescriptors(null); setObjective(null); setRecError(null);
     const dur=startAt?Math.max(0,Math.round(((Date.now()-startAt)/60000)*100)/100):0;
     try {
@@ -334,7 +363,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
   };
 
   const nextSession=(starter?:string)=>{
-    try { window.speechSynthesis?.cancel(); } catch {}
+    stopTTS();
     if (isAgent&&planData?.scenario) setAgentTitle(planData.scenario);
     setEnded(false); setFeedback(null); setFbRaw(""); setDescriptors(null); setObjective(null);
     setReflectData(null); setPlanData(null); setTranscript(""); setAudioPaths([]); setStartAt(Date.now());
@@ -663,7 +692,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
                     <span>Berhenti — rekaman aktif</span>
                   </button>
                 )}
-                <button onClick={()=>window.speechSynthesis?.cancel()}
+                <button onClick={()=>stopTTS()}
                   className="px-4 py-4 rounded-2xl text-xs border transition-all"
                   style={{ color:"var(--text3)", background:"var(--surface)", borderColor:"var(--border)" }}
                   title="Hentikan suara AI yang sedang berbicara"
