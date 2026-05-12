@@ -199,14 +199,42 @@ async def chat_open(
         return {"content": f"Welcome to {req.scenarioTitle}! Let's begin."}
 
 
-# Microsoft Edge Neural voices via edge-tts — gratis, tanpa API key, kualitas neural
+import asyncio as _asyncio
+import io as _io
+import wave as _wave
+from pathlib import Path as _Path
+
+# Piper: male=Ryan, female=Amy — per skenario
+_PIPER_VOICES_DIR = _Path.home() / "piper-voices"
 _SCENARIO_VOICE: dict[str, str] = {
-    "1":     "en-US-GuyNeural",    # Job Interview   — formal, profesional
-    "2":     "en-US-AriaNeural",   # Daily Conv      — ramah, natural
-    "3":     "en-US-DavisNeural",  # Business        — tegas, otoritatif
-    "4":     "en-US-JennyNeural",  # Travel          — jelas, helpful
-    "agent": "en-US-GuyNeural",    # AI Mode         — netral
+    "1":     "en_US-ryan-medium",   # Job Interview  — formal, male
+    "2":     "en_US-amy-medium",    # Daily Conv     — friendly, female
+    "3":     "en_US-ryan-medium",   # Business       — professional, male
+    "4":     "en_US-amy-medium",    # Travel         — clear, female
+    "agent": "en_US-ryan-medium",   # AI Mode        — neutral
 }
+_EDGE_FALLBACK: dict[str, str] = {
+    "1":     "en-US-GuyNeural",
+    "2":     "en-US-AriaNeural",
+    "3":     "en-US-DavisNeural",
+    "4":     "en-US-JennyNeural",
+    "agent": "en-US-GuyNeural",
+}
+_piper_cache: dict = {}   # cache model agar tidak reload tiap request
+
+
+def _synth_piper(text: str, voice_name: str) -> bytes:
+    """Jalankan Piper secara sinkron di thread pool."""
+    from piper import PiperVoice
+    if voice_name not in _piper_cache:
+        onnx = _PIPER_VOICES_DIR / f"{voice_name}.onnx"
+        _piper_cache[voice_name] = PiperVoice.load(str(onnx))
+    voice = _piper_cache[voice_name]
+    buf = _io.BytesIO()
+    with _wave.open(buf, "w") as wf:
+        voice.synthesize(text, wf)
+    buf.seek(0)
+    return buf.read()
 
 
 @router.post("/tts")
@@ -215,22 +243,29 @@ async def text_to_speech(
     scenarioId: str = Body("agent"),
     current_user: dict = Depends(require_user),
 ):
-    """edge-tts — Microsoft Neural voices, gratis tanpa billing atau API key."""
+    """Piper TTS (lokal, ~100-300ms) dengan fallback ke edge-tts jika model belum ada."""
+    voice_name = _SCENARIO_VOICE.get(scenarioId, "en_US-ryan-medium")
+    onnx_path  = _PIPER_VOICES_DIR / f"{voice_name}.onnx"
+
+    # Gunakan Piper kalau model sudah didownload di server
+    if onnx_path.exists():
+        try:
+            loop        = _asyncio.get_event_loop()
+            audio_bytes = await loop.run_in_executor(None, _synth_piper, text[:3000], voice_name)
+            return Response(content=audio_bytes, media_type="audio/wav")
+        except Exception as e:
+            print(f"[TTS] Piper error: {e} — falling back to edge-tts", flush=True)
+
+    # Fallback: edge-tts (pakai saat develop lokal atau model belum ada di server)
     try:
         import edge_tts
-    except ImportError:
-        return JSONResponse({"error": "edge-tts not installed. Run: pip install edge-tts"}, status_code=500)
-
-    voice = _SCENARIO_VOICE.get(scenarioId, "en-US-GuyNeural")
-    try:
-        communicate  = edge_tts.Communicate(text[:3000], voice)
-        audio_bytes  = b""
+        edge_voice  = _EDGE_FALLBACK.get(scenarioId, "en-US-GuyNeural")
+        communicate = edge_tts.Communicate(text[:3000], edge_voice)
+        audio_bytes = b""
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
                 audio_bytes += chunk["data"]
-        if not audio_bytes:
-            return JSONResponse({"error": "tts_empty"}, status_code=500)
         return Response(content=audio_bytes, media_type="audio/mpeg")
     except Exception as e:
-        print(f"[TTS] edge-tts error: {e}", flush=True)
-        return JSONResponse({"error": "tts_error", "detail": str(e)}, status_code=500)
+        print(f"[TTS] edge-tts fallback error: {e}", flush=True)
+        return JSONResponse({"error": "tts_unavailable"}, status_code=500)
