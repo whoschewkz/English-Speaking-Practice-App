@@ -6,9 +6,10 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Body, UploadFile, File, Form
 from fastapi.responses import JSONResponse, Response
 
-from ..config import GROQ_API_KEY, ELEVENLABS_API_KEY
+from ..config import GROQ_API_KEY, GOOGLE_APPLICATION_CREDENTIALS
 from ..schemas import ChatRequest, ChatOpenRequest
 from ..auth import require_user
+from ..utils import groq_post_with_retry
 
 router = APIRouter()
 
@@ -63,7 +64,7 @@ async def transcribe_audio(
         print(f"[AUDIO] Save failed: {e}")
 
     async with httpx.AsyncClient(timeout=120) as client:
-        r = await client.post(url, headers=headers, files=files, data=data)
+        r = await groq_post_with_retry(client, url, headers=headers, files=files, data=data)
         if r.status_code != 200:
             print(f"[TRANSCRIBE ERROR] status={r.status_code} body={r.text[:500]}", flush=True)
             return JSONResponse({"error": "groq_transcribe_failed", "detail": r.text}, status_code=500)
@@ -138,7 +139,7 @@ async def chat(
 
         body_req = {"model": "llama-3.3-70b-versatile", "messages": final_messages, "temperature": 0.3}
         async with httpx.AsyncClient(timeout=60) as client:
-            r = await client.post(url, headers=headers, json=body_req)
+            r = await groq_post_with_retry(client, url, headers=headers, json=body_req)
             if r.status_code != 200:
                 return JSONResponse({"error": "groq_chat_failed", "detail": r.text}, status_code=500)
             data = r.json()
@@ -185,9 +186,8 @@ async def chat_open(
             "temperature": 0.5,
         }
         async with httpx.AsyncClient(timeout=30) as client:
-            r = await client.post(url, headers=headers, json=body_req)
+            r = await groq_post_with_retry(client, url, headers=headers, json=body_req)
             if r.status_code != 200:
-                # Fallback kalau LLM gagal
                 return {"content": f"Welcome to {req.scenarioTitle} practice! Let's get started. Are you ready?"}
             data = r.json()
 
@@ -199,13 +199,13 @@ async def chat_open(
         return {"content": f"Welcome to {req.scenarioTitle}! Let's begin."}
 
 
-# Peta suara per skenario — ElevenLabs voice IDs (suara lebih natural & stabil)
+# Microsoft Edge Neural voices via edge-tts — gratis, tanpa API key, kualitas neural
 _SCENARIO_VOICE: dict[str, str] = {
-    "1":     "EXAVITQu4vr4xnSDxMaL",  # Job Interview   — Antoni (profesional, formal)
-    "2":     "g0FPH13sSikgrzLIPvQF",  # Daily Conv      — Bella (ramah, natural)
-    "3":     "21m00Tcm4TlvDq8ikWAM",  # Business        — Rachel (tegas, clear)
-    "4":     "pFZP5JQG7iQjIjzIm3Bn",  # Travel          — Elli (helpful, energetic)
-    "agent": "IZSifMMazsLE7O7ub3c9",  # AI Mode         — Charlie (netral, warm)
+    "1":     "en-US-GuyNeural",    # Job Interview   — formal, profesional
+    "2":     "en-US-AriaNeural",   # Daily Conv      — ramah, natural
+    "3":     "en-US-DavisNeural",  # Business        — tegas, otoritatif
+    "4":     "en-US-JennyNeural",  # Travel          — jelas, helpful
+    "agent": "en-US-GuyNeural",    # AI Mode         — netral
 }
 
 
@@ -215,33 +215,22 @@ async def text_to_speech(
     scenarioId: str = Body("agent"),
     current_user: dict = Depends(require_user),
 ):
-    """ElevenLabs TTS — suara natural per skenario, lebih stabil & berkualitas tinggi."""
-    if not ELEVENLABS_API_KEY:
-        return JSONResponse({"error": "Missing ELEVENLABS_API_KEY"}, status_code=500)
+    """edge-tts — Microsoft Neural voices, gratis tanpa billing atau API key."""
     try:
-        import httpx
-    except Exception as e:
-        return JSONResponse({"error": "Missing httpx", "detail": str(e)}, status_code=500)
+        import edge_tts
+    except ImportError:
+        return JSONResponse({"error": "edge-tts not installed. Run: pip install edge-tts"}, status_code=500)
 
-    voice_id = _SCENARIO_VOICE.get(scenarioId, "josh")
-
+    voice = _SCENARIO_VOICE.get(scenarioId, "en-US-GuyNeural")
     try:
-        url     = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-        headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
-        body    = {
-            "text": text[:3000],  # ElevenLabs max ~3000 chars per request
-            "model_id": "eleven_multilingual_v2",  # multilingual support untuk English
-            "voice_settings": {
-                "stability": 0.5,
-                "similarity_boost": 0.75,
-            }
-        }
-        async with httpx.AsyncClient(timeout=30) as client:
-            r = await client.post(url, headers=headers, json=body)
-            if r.status_code != 200:
-                print(f"[TTS] ElevenLabs error {r.status_code}: {r.text[:200]}", flush=True)
-                return JSONResponse({"error": "tts_failed", "detail": r.text}, status_code=500)
-            return Response(content=r.content, media_type="audio/mpeg")
+        communicate  = edge_tts.Communicate(text[:3000], voice)
+        audio_bytes  = b""
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_bytes += chunk["data"]
+        if not audio_bytes:
+            return JSONResponse({"error": "tts_empty"}, status_code=500)
+        return Response(content=audio_bytes, media_type="audio/mpeg")
     except Exception as e:
-        print(f"[TTS] Exception: {e}", flush=True)
+        print(f"[TTS] edge-tts error: {e}", flush=True)
         return JSONResponse({"error": "tts_error", "detail": str(e)}, status_code=500)

@@ -8,7 +8,8 @@ except Exception:
 
 API_PREFIX   = os.getenv("API_PREFIX", "/api")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
 if _raw_origins.strip().startswith("["):
     try:

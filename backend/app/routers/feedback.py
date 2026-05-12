@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from ..config import GROQ_API_KEY
 from ..schemas import FeedbackIn
 from ..auth import require_user
-from ..utils import _normalize_scores_obj, _extract_json_block, _objective_from_messages
+from ..utils import _normalize_scores_obj, _extract_json_block, _objective_from_messages, groq_post_with_retry
 
 router = APIRouter()
 
@@ -117,7 +117,7 @@ async def feedback(
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
 
     async with httpx.AsyncClient(timeout=60) as client:
-        r = await client.post(url, headers=headers, json=body_req)
+        r = await groq_post_with_retry(client, url, headers=headers, json=body_req)
         if r.status_code != 200:
             return JSONResponse({"error": "groq_feedback_failed", "detail": r.text}, status_code=500)
         data = r.json()

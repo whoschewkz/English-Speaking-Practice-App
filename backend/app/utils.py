@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 from math import fsum
@@ -7,6 +8,34 @@ from sqlalchemy.orm import Session
 
 from .config import GROQ_API_KEY
 from .models import ProfileORM
+
+
+# ===== Groq Retry Helper =====
+
+async def groq_post_with_retry(
+    client,
+    url: str,
+    *,
+    max_retries: int = 3,
+    **kwargs,
+):
+    """
+    POST ke Groq API dengan retry otomatis saat kena rate limit (429).
+    Pakai exponential backoff: 2s, 4s, 8s — user tidak sadar ada delay.
+    """
+    delay = 2.0
+    for attempt in range(max_retries + 1):
+        r = await client.post(url, **kwargs)
+        if r.status_code != 429:
+            return r
+        if attempt == max_retries:
+            break
+        retry_after = float(r.headers.get("retry-after", delay))
+        wait = max(retry_after, delay)
+        print(f"[GROQ] Rate limit hit, retry {attempt+1}/{max_retries} in {wait:.1f}s", flush=True)
+        await asyncio.sleep(wait)
+        delay *= 2   # exponential backoff
+    return r   # kembalikan response 429 terakhir kalau semua retry habis
 
 
 # ===== Profile =====
