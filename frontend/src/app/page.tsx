@@ -10,10 +10,10 @@ const SCENARIOS = [
 ];
 
 const FEATURES = [
-  { emoji:"💬", title:"Feedback instan",    desc:"Tips singkat dan yang bisa langsung diterapkan setelah setiap jawaban untuk memperbaiki kesalahan." },
-  { emoji:"🎙️", title:"Voice-to-Text",     desc:"Berbicara secara alami — browser merekam suaramu untuk dievaluasi AI." },
-  { emoji:"⚡",  title:"Sesi adaptif (AI)", desc:"AI memilihkan skenario dan tingkat kesulitan berdasarkan progres dan kelemahanmu." },
-  { emoji:"📊", title:"Analitik CEFR",      desc:"Pantau perkembangan kosakata, tata bahasa, kelancaran, koherensi, dan pelafalan." },
+  { title:"Feedback instan",    desc:"Tips singkat yang bisa langsung diterapkan setelah setiap jawaban untuk memperbaiki kesalahan." },
+  { title:"Rekam suara",        desc:"Berbicara secara alami — browser merekam suaramu untuk dievaluasi secara otomatis." },
+  { title:"Sesi adaptif",       desc:"Sistem memilihkan skenario dan tingkat kesulitan berdasarkan progres dan kelemahanmu." },
+  { title:"Analitik CEFR",      desc:"Pantau perkembangan kosakata, tata bahasa, kelancaran, koherensi, dan pelafalan." },
 ];
 
 const HOW = [
@@ -36,7 +36,7 @@ export default function Home() {
                 <path d="M12 14v4"/><path d="M8 10v2a4 4 0 0 0 8 0v-2"/>
               </svg>
             </div>
-            <span className="home-logo-text">SpeakEng</span>
+            <span className="home-logo-text">BicarAI</span>
           </div>
           <div className="home-nav-right">
             <Link href="/auth"     className="btn-ghost-sm">Masuk</Link>
@@ -79,7 +79,7 @@ export default function Home() {
             <span className="hero-stat-sep">·</span>
             <span className="hero-stat-chip">Rentang <strong>A2–C2</strong></span>
             <span className="hero-stat-sep">·</span>
-            <span className="hero-stat-chip"><strong>LLaMA 3.3</strong> + Whisper</span>
+            <span className="hero-stat-chip">Evaluasi <strong>otomatis</strong></span>
           </div>
         </div>
       </section>
@@ -142,7 +142,6 @@ export default function Home() {
             <div className="feature-cards">
               {FEATURES.map(f => (
                 <div key={f.title} className="feature-card">
-                  <span className="feature-emoji">{f.emoji}</span>
                   <h3 className="feature-title">{f.title}</h3>
                   <p className="feature-desc">{f.desc}</p>
                 </div>
@@ -188,7 +187,7 @@ export default function Home() {
 
       {/* ── Footer ── */}
       <footer className="home-footer">
-        <p>© 2025 SpeakEng · Unit Bahasa Poltek SSN · Next.js + FastAPI + LLaMA 3.3</p>
+        <p>© 2025 BicarAI · Unit Bahasa Poltek SSN</p>
       </footer>
 
       {/* ═══ Styles — semua di sini, tidak butuh file CSS terpisah ═══ */}
@@ -394,7 +393,6 @@ export default function Home() {
           transition: box-shadow .15s;
         }
         .feature-card:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06); }
-        .feature-emoji { font-size: 22px; display: block; margin-bottom: 10px; }
         .feature-title { margin: 0 0 5px; font-size: 14px; font-weight: 700; color: var(--text); }
         .feature-desc  { margin: 0; font-size: 12px; color: var(--text2); line-height: 1.55; }
 

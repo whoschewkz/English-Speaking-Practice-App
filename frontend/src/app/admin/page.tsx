@@ -290,7 +290,7 @@ export default function AdminPage() {
               <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background:"var(--accent)" }}>
                 <Icon.Mic width={13} height={13} style={{ stroke:"#0c0c10" }} />
               </div>
-              <span className="text-sm font-semibold" style={{ color:"var(--text)" }}>SpeakEng</span>
+              <span className="text-sm font-semibold" style={{ color:"var(--text)" }}>BicarAI</span>
             </Link>
             {/* Nav tabs */}
             {/* Tab nav — uppercase + letter-spacing untuk rasa premium ala Linear */}

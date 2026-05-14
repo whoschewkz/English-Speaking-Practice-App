@@ -90,6 +90,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
   const [elapsedTime,  setElapsedTime]  = useState("0:00");
   // Context skenario — dipakai di system prompt agar AI tetap on-topic
   const [scenarioCtx,  setScenarioCtx]  = useState<{ title:string; description:string }>({ title:"", description:"" });
+  const [isSpeaking,   setIsSpeaking]   = useState(false);  // TTS sedang loading/playing
 
   const audioRef    = useRef<AudioProcessor|null>(null);
   const streamRef   = useRef<MediaStream|null>(null);
@@ -105,32 +106,33 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
 
   useEffect(() => { return () => { stopTTS(); }; }, []);
 
-  // Hentikan TTS yang sedang jalan
   const stopTTS = () => {
     if (ttsAudioRef.current) {
       ttsAudioRef.current.pause();
       ttsAudioRef.current.src = "";
       ttsAudioRef.current = null;
     }
+    setIsSpeaking(false);
   };
 
-  // Groq PlayAI TTS — suara natural berbeda per skenario
   const speakTTS = async (text: string) => {
     stopTTS();
+    setIsSpeaking(true);   // tampilkan indikator
     try {
       const r = await authFetch(`${API}/api/tts`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ text, scenarioId: isAgent ? "agent" : id }),
       });
-      if (!r.ok) return;
-      const blob = await r.blob();
-      const url  = URL.createObjectURL(blob);
+      if (!r.ok) { setIsSpeaking(false); return; }
+      const blob  = await r.blob();
+      const url   = URL.createObjectURL(blob);
       const audio = new Audio(url);
       ttsAudioRef.current = audio;
-      audio.onended = () => { URL.revokeObjectURL(url); ttsAudioRef.current = null; };
-      audio.play().catch(() => {});
-    } catch {}
+      audio.onended = () => { URL.revokeObjectURL(url); ttsAudioRef.current = null; setIsSpeaking(false); };
+      audio.onerror = () => { setIsSpeaking(false); };
+      audio.play().catch(() => setIsSpeaking(false));
+    } catch { setIsSpeaking(false); }
   };
 
   useEffect(() => {
@@ -290,7 +292,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
       if (!r.ok) throw new Error();
       const d=await r.json();
       const content=d?.content||"Could not generate a reply.";
-      setMsgs(p=>[...p,{role:"assistant",content:`${content}\n\n💡 ${tipMsg(userText)}`}]);
+      setMsgs(p=>[...p,{role:"assistant",content:content}]);
       speakTTS(content);
     } catch { setMsgs(p=>[...p,{role:"assistant",content:"Server error. Coba lagi."}]); }
     finally { setThinking(false); setTranscript(""); }
@@ -382,8 +384,8 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
     : scenarioCtx.title || mapTitle(id);
   const card = { background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"20px" };
 
-  const statusLabel = thinking?"AI menjawab…":isRec?"Mendengarkan…":ended?"Selesai":"Berlangsung";
-  const statusColor = thinking?"var(--warn)":isRec?"var(--danger)":ended?"var(--accent)":"var(--text3)";
+  const statusLabel = thinking?"AI menjawab…":isRec?"Mendengarkan…":isSpeaking?"AI berbicara…":ended?"Selesai":"Berlangsung";
+  const statusColor = thinking?"var(--warn)":isRec?"var(--danger)":isSpeaking?"var(--accent)":ended?"var(--accent)":"var(--text3)";
 
   return (
     <div style={{ minHeight:"100vh", background:"var(--bg)", display:"flex", flexDirection:"column" }}>

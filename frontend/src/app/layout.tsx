@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SpeakEng — Platform Latihan Berbicara Bahasa Inggris",
+  title: "BicarAI — Platform Latihan Berbicara Bahasa Inggris",
   description: "Platform latihan berbicara bahasa Inggris berbasis AI untuk mahasiswa Unit Bahasa Poltek SSN. Evaluasi CEFR otomatis.",
 };
 

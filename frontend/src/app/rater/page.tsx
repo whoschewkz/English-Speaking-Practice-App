@@ -117,7 +117,7 @@ export default function RaterPage() {
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "var(--accent)" }}>
               <Icon.Mic width={13} height={13} style={{ stroke: "#0c0c10" }} />
             </div>
-            <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>SpeakEng</span>
+            <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>BicarAI</span>
             <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
               style={{ background: "rgba(129,140,248,0.12)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.3)" }}>
               Rater {myRaterNum}

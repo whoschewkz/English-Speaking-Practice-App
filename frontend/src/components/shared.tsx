@@ -214,7 +214,7 @@ export function NavBar({
           <div style={{ width:28, height:28, borderRadius:9, background:"var(--accent)", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <Icon.Mic width={13} height={13} style={{ stroke:"#0c0c10" }} />
           </div>
-          <span style={{ fontSize:14, fontWeight:700, color:"var(--text)", letterSpacing:"-0.3px" }}>SpeakEng</span>
+          <span style={{ fontSize:14, fontWeight:700, color:"var(--text)", letterSpacing:"-0.3px" }}>BicarAI</span>
         </Link>
 
         {/* Nav links */}
