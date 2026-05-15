@@ -900,7 +900,7 @@ export default function AdminPage() {
                       Rekaman Audio — {selectedRaterSes.scenario}
                     </p>
                     {selectedRaterSes.audio_path ? (
-                      <audio controls className="w-full" style={{ borderRadius:12 }}>
+                      <audio key={selectedRaterSes.id} controls className="w-full" style={{ borderRadius:12 }}>
                         <source src={`${API}/uploads/audio/${selectedRaterSes.audio_path}`} type="audio/wav" />
                         Browser tidak support audio
                       </audio>

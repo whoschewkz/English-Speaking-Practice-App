@@ -257,7 +257,7 @@ export default function RaterPage() {
                   Rekaman Audio — {selected.scenario}
                 </p>
                 {selected.audio_path ? (
-                  <audio controls className="w-full" style={{ borderRadius: 12 }}>
+                  <audio key={selected.id} controls className="w-full" style={{ borderRadius: 12 }}>
                     <source src={`${API}/uploads/audio/${selected.audio_path}`} type="audio/wav" />
                     Browser tidak support audio
                   </audio>
