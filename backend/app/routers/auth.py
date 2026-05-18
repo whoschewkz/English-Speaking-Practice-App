@@ -1,7 +1,7 @@
 import hashlib
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select as sa_select
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,7 @@ from ..auth import (
     create_access_token, create_refresh_token,
     verify_token, get_current_user,
 )
+from ..limiter import limiter
 
 router = APIRouter(prefix="/auth")
 
@@ -39,7 +40,8 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenOut)
-def login(payload: LoginIn, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, payload: LoginIn, db: Session = Depends(get_db)):
     user = db.execute(sa_select(UserORM).where(UserORM.username == payload.username)).scalar_one_or_none()
     # Pesan error generik (OWASP: jangan reveal apakah username/password yang salah)
     if not user or not verify_password(payload.password, user.hashed_password):

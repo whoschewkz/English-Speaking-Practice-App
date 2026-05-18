@@ -5,8 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from .config import API_PREFIX, ALLOWED_ORIGINS, GROQ_API_KEY
+from .limiter import limiter
 from .database import engine, SessionLocal, sqlite_add_column_if_missing
 from .models import Base
 from .seed import seed_scenarios, seed_admin
@@ -46,6 +49,9 @@ app = FastAPI(
     redoc_url=f"{API_PREFIX}/redoc",
     openapi_url=f"{API_PREFIX}/openapi.json",
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,

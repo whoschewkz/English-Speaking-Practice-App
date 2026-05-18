@@ -38,18 +38,62 @@ const mapOpen  = (id:string) =>
 
 const DIM:Record<string,string> = { range:"Kosakata", accuracy:"Tata Bahasa", fluency:"Kelancaran", coherence:"Koherensi", phonology:"Pelafalan" };
 
-function ScoreBar({ label, value, highlight=false }:{ label:string; value:number; highlight?:boolean }) {
-  const col = highlight ? "var(--accent)" : scoreCol(value);
+const DIM_TOOLTIP:Record<string,string> = {
+  range:     "Keragaman & ketepatan kosakata yang digunakan",
+  accuracy:  "Ketepatan struktur dan tata bahasa",
+  fluency:   "Kelancaran bicara tanpa jeda atau filler berlebihan",
+  coherence: "Kemampuan menyusun dan menghubungkan ide secara logis",
+  phonology: "Kejelasan pengucapan, tekanan kata, dan intonasi",
+  overall:   "Rata-rata dari kelima dimensi di atas",
+};
+
+const CEFR_DESC:Record<string,string> = {
+  "A1":  "Pemula mutlak",
+  "A2":  "Pemula — bisa komunikasi dasar",
+  "B1":  "Menengah — bisa ungkapkan hal umum",
+  "B2":  "Menengah atas — bisa diskusi kompleks",
+  "C1+": "Mahir — hampir setara penutur asli",
+};
+
+function Tooltip({ text, children }:{ text:string; children:React.ReactNode }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span className="relative inline-flex" style={{ cursor:"default" }}
+      onMouseEnter={()=>setShow(true)} onMouseLeave={()=>setShow(false)}>
+      {children}
+      {show && (
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 rounded-lg text-xs pointer-events-none z-50 text-center leading-snug"
+          style={{ background:"var(--text)", color:"var(--bg)", boxShadow:"0 4px 12px rgba(0,0,0,0.25)",
+            whiteSpace:"normal", maxWidth:"200px" }}>
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function ScoreBar({ label, value, highlight=false, dimKey="" }:{ label:string; value:number; highlight?:boolean; dimKey?:string }) {
+  const col      = highlight ? "var(--accent)" : scoreCol(value);
+  const cefr     = cefrKey(value);
+  const dimTip   = dimKey ? DIM_TOOLTIP[dimKey] : "";
+  const cefrTip  = CEFR_DESC[cefr] ?? "";
   return (
     <div>
       <div className="flex justify-between items-center mb-1.5">
-        <span className="text-sm" style={{ color:"var(--text2)", fontWeight: highlight ? 600 : 400 }}>{label}</span>
+        <Tooltip text={dimTip}>
+          <span className="text-sm" style={{ color:"var(--text2)", fontWeight: highlight ? 600 : 400,
+            borderBottom: dimTip ? "1px dashed var(--border2)" : "none" }}>
+            {label}
+          </span>
+        </Tooltip>
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold" style={{ color:col }}>{value.toFixed(1)}/5</span>
-          <span className="text-xs px-2 py-0.5 rounded-full font-semibold border"
-            style={{ color:col, background:`${col}10`, borderColor:`${col}25` }}>
-            {cefrKey(value)}
-          </span>
+          <Tooltip text={cefrTip}>
+            <span className="text-xs px-2 py-0.5 rounded-full font-semibold border"
+              style={{ color:col, background:`${col}10`, borderColor:`${col}25` }}>
+              {cefr}
+            </span>
+          </Tooltip>
         </div>
       </div>
       <div className="h-1.5 rounded-full" style={{ background:"var(--border2)" }}>
@@ -90,7 +134,10 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
   const [elapsedTime,  setElapsedTime]  = useState("0:00");
   // Context skenario — dipakai di system prompt agar AI tetap on-topic
   const [scenarioCtx,  setScenarioCtx]  = useState<{ title:string; description:string }>({ title:"", description:"" });
-  const [isSpeaking,   setIsSpeaking]   = useState(false);  // TTS sedang loading/playing
+  const [isSpeaking,     setIsSpeaking]     = useState(false);  // TTS sedang loading/playing
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [confirmEnd,     setConfirmEnd]     = useState(false);
+  const [pendingBlob,    setPendingBlob]    = useState<Blob|null>(null);
 
   const audioRef    = useRef<AudioProcessor|null>(null);
   const streamRef   = useRef<MediaStream|null>(null);
@@ -220,7 +267,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
       const tag=(document.activeElement?.tagName||"").toLowerCase();
       if (["input","textarea","button"].includes(tag)) return;
       e.preventDefault();
-      if (thinking||fbLoading) return;
+      if (thinking||fbLoading||isTranscribing) return;
       isRec ? stopRec() : startRec();
     };
     window.addEventListener("keydown",onKey);
@@ -230,6 +277,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
   const startRec=async()=>{
     if (ended||isRec||thinking||fbLoading) return;
     setRecError(null);
+    setPendingBlob(null);
     try {
       const stream=await requestMicrophone(DEFAULT_AUDIO_CONFIG);
       streamRef.current=stream;
@@ -258,10 +306,10 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
 
   const doTranscribe=async(blob:Blob)=>{
     if (ended) return;
+    setIsTranscribing(true);
+    setPendingBlob(null);
     const fd=new FormData();
     fd.append("audio",blob,"speech.wav");
-    // Tidak kirim language — biarkan Whisper auto-detect agar transkripsi apa adanya
-    // (bukan ditranslate ke English, penting untuk penilaian pronunciation yang akurat)
     try {
       const r=await authFetchForm(`${API}/api/transcribe`,fd);
       if (!r.ok) throw new Error(await r.text());
@@ -271,7 +319,15 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
       if (d?.audio_path) setAudioPaths(p => [...p, d.audio_path]);
       if (t) await sendToAI(t);
       else setMsgs(p=>[...p,{role:"assistant",content:"Suara tidak terdengar jelas. Coba lagi."}]);
-    } catch { setMsgs(p=>[...p,{role:"assistant",content:"Transcription gagal. Coba lagi."}]); }
+    } catch { setPendingBlob(blob); }
+    finally { setIsTranscribing(false); }
+  };
+
+  const retryTranscribe=()=>{
+    if (!pendingBlob) return;
+    const blob=pendingBlob;
+    setPendingBlob(null);
+    doTranscribe(blob);
   };
 
   const sendToAI=async(userText:string)=>{
@@ -300,6 +356,8 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
 
   const endSession=async()=>{
     if (ended||thinking||isRec||fbLoading) return;
+    setConfirmEnd(false);
+    setPendingBlob(null);
     stopTTS(); hardStop();
     setFbLoading(true); setFeedback(null); setFbRaw(""); setDescriptors(null); setObjective(null); setRecError(null);
     const dur=startAt?Math.max(0,Math.round(((Date.now()-startAt)/60000)*100)/100):0;
@@ -384,8 +442,8 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
     : scenarioCtx.title || mapTitle(id);
   const card = { background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"20px" };
 
-  const statusLabel = thinking?"AI menjawab…":isRec?"Mendengarkan…":isSpeaking?"AI berbicara…":ended?"Selesai":"Berlangsung";
-  const statusColor = thinking?"var(--warn)":isRec?"var(--danger)":isSpeaking?"var(--accent)":ended?"var(--accent)":"var(--text3)";
+  const statusLabel = thinking?"AI menjawab…":isTranscribing?"Memproses audio…":isRec?"Mendengarkan…":isSpeaking?"AI berbicara…":ended?"Selesai":"Berlangsung";
+  const statusColor = thinking?"var(--warn)":isTranscribing?"var(--warn)":isRec?"var(--danger)":isSpeaking?"var(--accent)":ended?"var(--accent)":"var(--text3)";
 
   return (
     <div style={{ minHeight:"100vh", background:"var(--bg)", display:"flex", flexDirection:"column" }}>
@@ -456,10 +514,10 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div className="space-y-4">
                     {(["range","accuracy","fluency","coherence","phonology"] as const).map(d=>(
-                      <ScoreBar key={d} label={DIM[d]} value={feedback[d]} />
+                      <ScoreBar key={d} label={DIM[d]} value={feedback[d]} dimKey={d} />
                     ))}
                     <div className="pt-4 border-t" style={{ borderColor:"var(--border)" }}>
-                      <ScoreBar label="Overall" value={feedback.overall} highlight />
+                      <ScoreBar label="Overall" value={feedback.overall} highlight dimKey="overall" />
                     </div>
                   </div>
                   <div className="space-y-5">
@@ -656,9 +714,34 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
           )}
           {!ended ? (
             <>
+              {pendingBlob && (
+                <div className="flex items-center justify-between gap-3 px-5 py-3 rounded-2xl border"
+                  style={{ background:"rgba(239,68,68,0.06)", borderColor:"rgba(239,68,68,0.2)" }}>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color:"var(--danger)" }}>Transkripsi gagal</p>
+                    <p className="text-xs mt-0.5" style={{ color:"var(--text3)" }}>Audio tersimpan — kamu bisa kirim ulang atau buang</p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={()=>setPendingBlob(null)}
+                      className="text-xs px-3 py-1.5 rounded-lg border transition-colors"
+                      style={{ color:"var(--text2)", borderColor:"var(--border2)", background:"var(--surface)" }}
+                      onMouseEnter={e=>(e.currentTarget.style.borderColor="var(--border)")}
+                      onMouseLeave={e=>(e.currentTarget.style.borderColor="var(--border2)")}>
+                      Buang
+                    </button>
+                    <button onClick={retryTranscribe}
+                      className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors"
+                      style={{ background:"var(--accent)", color:"#0c0c10" }}
+                      onMouseEnter={e=>(e.currentTarget.style.opacity="0.85")}
+                      onMouseLeave={e=>(e.currentTarget.style.opacity="1")}>
+                      Kirim ulang
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="flex gap-3">
                 {!isRec ? (
-                  <button onClick={startRec} disabled={thinking||fbLoading}
+                  <button onClick={startRec} disabled={thinking||fbLoading||isTranscribing}
                     className="flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-sm font-medium border transition-all active:scale-[0.98] disabled:opacity-40"
                     style={{ color:"var(--text2)", background:"var(--surface)", borderColor:"var(--border2)" }}
                     onMouseEnter={e=>{if(!thinking&&!fbLoading){
@@ -680,28 +763,38 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
                     <span className="hidden sm:inline ml-auto text-xs" style={{ color:"var(--text3)" }}>Tekan Spasi</span>
                   </button>
                 ) : (
-                  <button onClick={stopRec}
-                    className="flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-sm font-medium border transition-all active:scale-[0.98]"
-                    style={{ color:"var(--danger)", background:"rgba(239,68,68,0.06)", borderColor:"rgba(239,68,68,0.3)" }}>
-                    <div className="relative w-8 h-8 flex-shrink-0">
-                      {/* Ripple organik — lebih smooth dari ping default Tailwind */}
-                      <div className="absolute inset-0 rounded-xl" style={{ background:"rgba(239,68,68,0.2)", animation:"ripple 1.8s ease-out infinite" }} />
-                      <div className="relative w-8 h-8 rounded-xl flex items-center justify-center border"
-                        style={{ background:"rgba(239,68,68,0.12)", borderColor:"rgba(239,68,68,0.3)" }}>
-                        <div className="w-3 h-3 rounded-sm" style={{ background:"var(--danger)" }} />
+                  <>
+                    <button onClick={stopRec}
+                      className="flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-sm font-medium border transition-all active:scale-[0.98]"
+                      style={{ color:"var(--danger)", background:"rgba(239,68,68,0.06)", borderColor:"rgba(239,68,68,0.3)" }}>
+                      <div className="relative w-8 h-8 flex-shrink-0">
+                        <div className="absolute inset-0 rounded-xl" style={{ background:"rgba(239,68,68,0.2)", animation:"ripple 1.8s ease-out infinite" }} />
+                        <div className="relative w-8 h-8 rounded-xl flex items-center justify-center border"
+                          style={{ background:"rgba(239,68,68,0.12)", borderColor:"rgba(239,68,68,0.3)" }}>
+                          <div className="w-3 h-3 rounded-sm" style={{ background:"var(--danger)" }} />
+                        </div>
                       </div>
-                    </div>
-                    <span>Berhenti — rekaman aktif</span>
+                      <span>Kirim jawaban</span>
+                    </button>
+                    <button onClick={hardStop}
+                      className="px-5 py-4 rounded-2xl text-sm font-medium border transition-all active:scale-[0.98]"
+                      style={{ color:"var(--text2)", background:"var(--surface)", borderColor:"var(--border2)" }}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--border)"; e.currentTarget.style.color="var(--text)";}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border2)"; e.currentTarget.style.color="var(--text2)";}}>
+                      Batalkan
+                    </button>
+                  </>
+                )}
+                {!isRec && (
+                  <button onClick={()=>stopTTS()}
+                    className="px-4 py-4 rounded-2xl text-xs border transition-all"
+                    style={{ color:"var(--text3)", background:"var(--surface)", borderColor:"var(--border)" }}
+                    title="Hentikan suara AI yang sedang berbicara"
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--border2)"; e.currentTarget.style.color="var(--text)";}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)"; e.currentTarget.style.color="var(--text3)";}}>
+                    Stop Suara
                   </button>
                 )}
-                <button onClick={()=>stopTTS()}
-                  className="px-4 py-4 rounded-2xl text-xs border transition-all"
-                  style={{ color:"var(--text3)", background:"var(--surface)", borderColor:"var(--border)" }}
-                  title="Hentikan suara AI yang sedang berbicara"
-                  onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--border2)"; e.currentTarget.style.color="var(--text)";}}
-                  onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border)"; e.currentTarget.style.color="var(--text3)";}}>
-                  Stop Suara
-                </button>
               </div>
 
               {transcript && (
@@ -711,23 +804,47 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
                 </div>
               )}
 
-              <button onClick={endSession} disabled={thinking||isRec||fbLoading}
-                className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-medium border transition-all active:scale-[0.98] disabled:opacity-30"
-                style={{ color:"var(--text2)", background:"var(--surface)", borderColor:"var(--border)" }}
-                onMouseEnter={e=>{if(!thinking&&!isRec&&!fbLoading){e.currentTarget.style.color="var(--text)"; e.currentTarget.style.borderColor="var(--border2)";} }}
-                onMouseLeave={e=>{e.currentTarget.style.color="var(--text2)"; e.currentTarget.style.borderColor="var(--border)";}}>
-                {fbLoading ? (
-                  <><Icon.Spinner width={16} height={16} style={{ stroke:"var(--text3)" }} /> Menganalisis…</>
-                ) : (
-                  <>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 3l1.5 3.5L17 8l-3.5 1.5L12 13l-1.5-3.5L7 8l3.5-1.5L12 3z"/>
-                      <path d="M19 15l.8 1.8L22 17l-1.8.8L19 20l-.8-1.2L16 17l2.2-.2L19 15z"/>
-                    </svg>
-                    Akhiri sesi &amp; dapatkan feedback
-                  </>
-                )}
-              </button>
+              {confirmEnd ? (
+                <div className="flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl border"
+                  style={{ background:"rgba(239,68,68,0.06)", borderColor:"rgba(239,68,68,0.2)" }}>
+                  <p className="text-sm" style={{ color:"var(--danger)" }}>Yakin akhiri sesi sekarang?</p>
+                  <div className="flex gap-2">
+                    <button onClick={()=>setConfirmEnd(false)}
+                      className="text-xs px-4 py-1.5 rounded-lg border transition-colors"
+                      style={{ color:"var(--text2)", borderColor:"var(--border2)", background:"var(--surface)" }}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--border)";}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--border2)";}}>
+                      Batal
+                    </button>
+                    <button onClick={endSession}
+                      className="text-xs px-4 py-1.5 rounded-lg font-semibold transition-colors"
+                      style={{ background:"var(--danger)", color:"#fff" }}
+                      onMouseEnter={e=>{e.currentTarget.style.opacity="0.85";}}
+                      onMouseLeave={e=>{e.currentTarget.style.opacity="1";}}>
+                      Ya, akhiri
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={()=>{ msgs.length > 1 ? setConfirmEnd(true) : endSession(); }}
+                  disabled={thinking||isRec||fbLoading||isTranscribing}
+                  className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-medium border transition-all active:scale-[0.98] disabled:opacity-30"
+                  style={{ color:"var(--text2)", background:"var(--surface)", borderColor:"var(--border)" }}
+                  onMouseEnter={e=>{if(!thinking&&!isRec&&!fbLoading&&!isTranscribing){e.currentTarget.style.color="var(--text)"; e.currentTarget.style.borderColor="var(--border2)";} }}
+                  onMouseLeave={e=>{e.currentTarget.style.color="var(--text2)"; e.currentTarget.style.borderColor="var(--border)";}}>
+                  {fbLoading ? (
+                    <><Icon.Spinner width={16} height={16} style={{ stroke:"var(--text3)" }} /> Menganalisis…</>
+                  ) : (
+                    <>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 3l1.5 3.5L17 8l-3.5 1.5L12 13l-1.5-3.5L7 8l3.5-1.5L12 3z"/>
+                        <path d="M19 15l.8 1.8L22 17l-1.8.8L19 20l-.8-1.2L16 17l2.2-.2L19 15z"/>
+                      </svg>
+                      Akhiri sesi &amp; dapatkan feedback
+                    </>
+                  )}
+                </button>
+              )}
             </>
           ) : (
             <>
@@ -744,13 +861,18 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
                   onMouseLeave={e=>(e.currentTarget.style.borderColor="var(--border)")}>
                   Pilih skenario lain
                 </button>
-                <button onClick={doReflect} disabled={reflectLoad||planLoad}
-                  className="py-3.5 rounded-2xl text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-                  style={{ background:"var(--accent)", color:"#0c0c10" }}>
-                  {reflectLoad||planLoad
-                    ? <><Icon.Spinner width={14} height={14} style={{ stroke:"#0c0c10" }} /> Memproses…</>
-                    : "Refleksi & rencana lanjut"}
-                </button>
+                <div className="flex flex-col gap-1">
+                  <button onClick={doReflect} disabled={reflectLoad||planLoad}
+                    className="py-3.5 rounded-2xl text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                    style={{ background:"var(--accent)", color:"#0c0c10" }}>
+                    {reflectLoad||planLoad
+                      ? <><Icon.Spinner width={14} height={14} style={{ stroke:"#0c0c10" }} /> Memproses…</>
+                      : "Refleksi & rencana lanjut"}
+                  </button>
+                  <p className="text-xs text-center" style={{ color:"var(--text3)" }}>
+                    Analisis kesalahan, target vocab & rekomendasi sesi berikutnya
+                  </p>
+                </div>
               </div>
             </>
           )}

@@ -112,6 +112,7 @@ export default function AdminPage() {
   const [raterSaving,      setRaterSaving]      = useState(false);
   const [correlations,     setCorrelations]     = useState<any>(null);
   const [corrLoading,      setCorrLoading]      = useState(false);
+  const [confirmAction,    setConfirmAction]    = useState<{ type:"role"|"active"; user:User; newRole?:string }|null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -692,34 +693,34 @@ export default function AdminPage() {
                         <div className="flex items-center gap-1.5">
                           {/* Tombol rater1/rater2 — hanya muncul untuk non-admin */}
                           {u.role !== "admin" && u.role !== "rater1" && (
-                            <button onClick={()=>setRole(u,"rater1")} disabled={u.id===1}
+                            <button onClick={()=>setConfirmAction({type:"role",user:u,newRole:"rater1"})} disabled={u.id===1}
                               className="px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all disabled:opacity-30 whitespace-nowrap"
                               style={{ color:"#818cf8", borderColor:"rgba(129,140,248,0.3)", background:"rgba(129,140,248,0.08)" }}>
                               → Rater 1
                             </button>
                           )}
                           {u.role !== "admin" && u.role !== "rater2" && (
-                            <button onClick={()=>setRole(u,"rater2")} disabled={u.id===1}
+                            <button onClick={()=>setConfirmAction({type:"role",user:u,newRole:"rater2"})} disabled={u.id===1}
                               className="px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all disabled:opacity-30 whitespace-nowrap"
                               style={{ color:"#a78bfa", borderColor:"rgba(167,139,250,0.3)", background:"rgba(167,139,250,0.08)" }}>
                               → Rater 2
                             </button>
                           )}
                           {(u.role==="rater1"||u.role==="rater2") && (
-                            <button onClick={()=>setRole(u,"user")} disabled={u.id===1}
+                            <button onClick={()=>setConfirmAction({type:"role",user:u,newRole:"user"})} disabled={u.id===1}
                               className="px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all disabled:opacity-30 whitespace-nowrap"
                               style={{ color:"var(--text2)", borderColor:"var(--border2)", background:"var(--surface2)" }}>
                               → User
                             </button>
                           )}
-                          <button onClick={()=>setRole(u, u.role==="admin"?"user":"admin")} disabled={u.id===1}
+                          <button onClick={()=>setConfirmAction({type:"role",user:u,newRole:u.role==="admin"?"user":"admin"})} disabled={u.id===1}
                             className="px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all disabled:opacity-30 whitespace-nowrap"
                             style={{ color:"var(--text2)", borderColor:"var(--border2)", background:"var(--surface2)" }}
                             onMouseEnter={e=>{ if(u.id!==1){ e.currentTarget.style.borderColor="var(--border)"; e.currentTarget.style.color="var(--text)"; }}}
                             onMouseLeave={e=>{ e.currentTarget.style.borderColor="var(--border2)"; e.currentTarget.style.color="var(--text2)"; }}>
                             {u.role==="admin"?"→ User":"→ Admin"}
                           </button>
-                          <button onClick={()=>toggleActive(u)} disabled={u.id===1}
+                          <button onClick={()=>setConfirmAction({type:"active",user:u})} disabled={u.id===1}
                             className="px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all disabled:opacity-30 whitespace-nowrap"
                             style={u.is_active
                               ? {color:"var(--danger)",borderColor:"rgba(239,68,68,0.3)",background:"rgba(239,68,68,0.06)"}
@@ -1120,6 +1121,49 @@ export default function AdminPage() {
           </div>
         )}
       </main>
+
+      {/* ── Confirmation Modal ── */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background:"rgba(0,0,0,0.5)", backdropFilter:"blur(4px)" }}
+          onClick={()=>setConfirmAction(null)}>
+          <div className="rounded-2xl p-6 max-w-sm w-full"
+            style={{ background:"var(--surface)", border:"1px solid var(--border)", boxShadow:"0 20px 60px rgba(0,0,0,0.3)" }}
+            onClick={e=>e.stopPropagation()}>
+            <p className="font-semibold mb-2" style={{ color:"var(--text)" }}>
+              {confirmAction.type === "active"
+                ? `${confirmAction.user.is_active ? "Nonaktifkan" : "Aktifkan"} akun "${confirmAction.user.username}"?`
+                : `Ubah role "${confirmAction.user.username}" → ${confirmAction.newRole}?`}
+            </p>
+            <p className="text-sm mb-5" style={{ color:"var(--text3)" }}>
+              {confirmAction.type === "active" && confirmAction.user.is_active
+                ? "User tidak dapat login setelah dinonaktifkan."
+                : confirmAction.type === "active"
+                ? "User akan dapat login kembali."
+                : "Hak akses user akan berubah sesuai role baru."}
+            </p>
+            <div className="flex gap-3">
+              <button onClick={()=>setConfirmAction(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors"
+                style={{ color:"var(--text2)", borderColor:"var(--border2)", background:"var(--surface2)" }}>
+                Batal
+              </button>
+              <button onClick={()=>{
+                  if (confirmAction.type === "active") toggleActive(confirmAction.user);
+                  else setRole(confirmAction.user, confirmAction.newRole!);
+                  setConfirmAction(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors"
+                style={{
+                  background: confirmAction.type === "active" && confirmAction.user.is_active ? "var(--danger)" : "var(--accent)",
+                  color:      confirmAction.type === "active" && confirmAction.user.is_active ? "#fff" : "#0c0c10",
+                }}>
+                Ya, lanjutkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
