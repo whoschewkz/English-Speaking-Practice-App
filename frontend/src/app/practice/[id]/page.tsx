@@ -310,6 +310,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
     setPendingBlob(null);
     const fd=new FormData();
     fd.append("audio",blob,"speech.wav");
+    fd.append("language","en");  // Force English transcription
     try {
       const r=await authFetchForm(`${API}/api/transcribe`,fd);
       if (!r.ok) throw new Error(await r.text());

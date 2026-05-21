@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(.venv/Scripts/python -c \"from app.routers.chat import router; from app.routers.feedback import router as fr; print\\('OK'\\)\")"
+    ]
+  }
+}

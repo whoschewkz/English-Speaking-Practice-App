@@ -95,8 +95,35 @@ def admin_delete_scenario(
     return {"ok": True}
 
 
+def _aggregate_by_date(sessions: list) -> list:
+    """Aggregate sessions by date (DD/MM format)"""
+    from collections import defaultdict
+    by_date = defaultdict(list)
+    for s in sessions:
+        date_key = s.created_at.strftime("%d/%m")
+        by_date[date_key].append(s)
+
+    result = []
+    for date_key in sorted(by_date.keys()):
+        day_sessions = by_date[date_key]
+        result.append({
+            "date": date_key,
+            "sessions_on_day": len(day_sessions),
+            "overall": round(sum(s.score_overall for s in day_sessions) / len(day_sessions), 2),
+            "range": round(sum(s.score_range for s in day_sessions) / len(day_sessions), 2),
+            "accuracy": round(sum(s.score_accuracy for s in day_sessions) / len(day_sessions), 2),
+            "fluency": round(sum(s.score_fluency for s in day_sessions) / len(day_sessions), 2),
+            "coherence": round(sum(s.score_coherence for s in day_sessions) / len(day_sessions), 2),
+            "phonology": round(sum(s.score_phonology for s in day_sessions) / len(day_sessions), 2),
+            "total_min": round(sum(s.duration_min or 0 for s in day_sessions), 1),
+            "scenarios": [s.scenario for s in day_sessions],
+        })
+    return result
+
+
 @router.get("/analytics")
 def admin_analytics(
+    view: str = "session",  # 'session' or 'daily'
     current_user: dict = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -120,20 +147,24 @@ def admin_analytics(
 
         total_min = sum(s.duration_min or 0 for s in sessions)
 
-        score_trend = [
-            {
-                "session":  i + 1,
-                "overall":  round(s.score_overall, 2),
-                "range":    round(s.score_range, 2),
-                "accuracy": round(s.score_accuracy, 2),
-                "fluency":  round(s.score_fluency, 2),
-                "coherence":round(s.score_coherence, 2),
-                "phonology":round(s.score_phonology, 2),
-                "date":     s.created_at.strftime("%d/%m"),
-                "scenario": s.scenario,
-            }
-            for i, s in enumerate(sessions)
-        ]
+        # Build score_trend based on view parameter
+        if view == "daily":
+            score_trend = _aggregate_by_date(sessions)
+        else:  # default 'session'
+            score_trend = [
+                {
+                    "session":  i + 1,
+                    "overall":  round(s.score_overall, 2),
+                    "range":    round(s.score_range, 2),
+                    "accuracy": round(s.score_accuracy, 2),
+                    "fluency":  round(s.score_fluency, 2),
+                    "coherence":round(s.score_coherence, 2),
+                    "phonology":round(s.score_phonology, 2),
+                    "date":     s.created_at.strftime("%d/%m"),
+                    "scenario": s.scenario,
+                }
+                for i, s in enumerate(sessions)
+            ]
 
         result.append({
             "user_id":       u.id,
@@ -145,6 +176,7 @@ def admin_analytics(
             "total_min":     round(total_min, 1),
             "level":         prof.level if prof else 1,
             "target_cefr":   prof.target_cefr if prof else "B1",
+            "view_mode":     view,
             "ma": {
                 "range":     round(prof.ma_range, 2)     if prof else 3.0,
                 "accuracy":  round(prof.ma_accuracy, 2)  if prof else 3.0,

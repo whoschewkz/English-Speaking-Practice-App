@@ -319,6 +319,7 @@ async def run_benchmark():
 
         for t_key, t_msgs in TEST_TRANSCRIPTS.items():
             print(f"  Transcript: {t_key} ... ", end="", flush=True)
+            await asyncio.sleep(5)   # jeda 5 detik antar request — hindari rate limit
             try:
                 result = await call_groq(variant_cfg["system"], t_msgs)
                 scores = result.get("scores", {})

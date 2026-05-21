@@ -1,7 +1,7 @@
 {
   "meta": {
     "model": "llama-3.3-70b-versatile",
-    "timestamp": "2026-04-22T13:47:50.541385",
+    "timestamp": "2026-05-09T17:05:32.442996",
     "temperature": 0.1,
     "num_variants": 3,
     "num_transcripts": 3
@@ -41,13 +41,13 @@
             "overall": 3
           },
           "descriptors": {
-            "range": "The candidate discusses their job responsibilities and skills, but the vocabulary is not particularly nuanced or specialized.",
-            "accuracy": "The candidate's grammar and sentence structure are generally correct, but there are no complex sentence forms.",
-            "fluency": "The candidate speaks at a moderate pace, with some pauses to gather thoughts.",
-            "coherence": "The candidate's ideas are logically connected, but the discourse is relatively straightforward.",
-            "phonology": "The candidate's pronunciation is generally clear, but there is a noticeable non-native accent."
+            "range": "The candidate discusses their experience and skills, but the vocabulary is not particularly nuanced or specialized.",
+            "accuracy": "The candidate's grammar and sentence structure are generally correct, but there may be occasional minor errors.",
+            "fluency": "The candidate speaks at a moderate pace, with some pauses to gather their thoughts.",
+            "coherence": "The candidate's ideas are logically connected, but the discourse may lack more sophisticated linking phrases or transitional words.",
+            "phonology": "The candidate's pronunciation is generally clear, but may have a noticeable non-native accent."
           },
-          "comment": "The candidate demonstrates a moderate level of proficiency in English, able to discuss their work experience and skills with some clarity. However, the language use is not particularly sophisticated or precise.",
+          "comment": "The candidate demonstrates a good command of English, but may benefit from expanding their vocabulary and practicing more complex grammatical structures. Their speech is clear and coherent, but could be more engaging with more varied intonation and rhythm.",
           "reasoning": {},
           "self_check": {},
           "anchor_comparison": {}
@@ -63,12 +63,12 @@
           },
           "descriptors": {
             "range": "The candidate uses a wide range of vocabulary, including terms like 'cross-functional marketing initiatives', 'behavioral data', 'psychological triggers', and 'AI-driven personalization', demonstrating a high level of linguistic flexibility.",
-            "accuracy": "The candidate's language is highly accurate, with no noticeable grammatical errors, and complex sentence structures are used correctly.",
-            "fluency": "The candidate speaks spontaneously and fluently, with no hesitation or repetition, and their speech flows naturally.",
-            "coherence": "The candidate's speech is highly coherent and well-organized, with clear connections between ideas and effective use of transitional phrases.",
-            "phonology": "The candidate's pronunciation is clear and natural, with good intonation and stress patterns, making their speech easy to follow."
+            "accuracy": "The candidate's language is free of grammatical errors, with complex sentence structures used correctly, such as 'What sets my approach apart is the integration of behavioral data with creative strategy'.",
+            "fluency": "The candidate speaks spontaneously, with no noticeable pauses or hesitations, and maintains a natural flow of speech throughout the conversation.",
+            "coherence": "The candidate's speech is highly coherent, with ideas logically connected and effectively organized, making it easy to follow their line of reasoning.",
+            "phonology": "The candidate's pronunciation, stress, and intonation are all native-like, contributing to a high level of clarity and comprehensibility."
           },
-          "comment": "The candidate demonstrates exceptional linguistic ability, with a strong command of vocabulary, grammar, and pronunciation. Their speech is fluent, coherent, and engaging, indicating a high level of proficiency in English.",
+          "comment": "The candidate demonstrates exceptional linguistic proficiency, showcasing a mastery of English that is rare even among native speakers. Their ability to articulate complex ideas with precision and clarity is outstanding.",
           "reasoning": {},
           "self_check": {},
           "anchor_comparison": {}
@@ -95,19 +95,19 @@
             "overall": 2.0
           },
           "descriptors": {
-            "range": "The user's vocabulary is sufficient for familiar topics but lacks precision and variety.",
-            "accuracy": "The user demonstrates basic control over sentence structures but makes frequent errors.",
-            "fluency": "The user's speech is marked by noticeable pauses and difficulty in sustaining a flow.",
-            "coherence": "Ideas are connected in a simple and somewhat disjointed manner.",
-            "phonology": "Pronunciation is understandable but clearly influenced by the user's first language."
+            "range": "The user has a limited range of vocabulary, sufficient for familiar topics but lacking in precision and variety.",
+            "accuracy": "The user demonstrates some control over basic sentence structures but with frequent errors, especially in more complex or less predictable situations.",
+            "fluency": "The user's speech is marked by frequent pauses and hesitations, indicating difficulty in expressing thoughts fluently.",
+            "coherence": "The user can sequence ideas in a simple and linear fashion but struggles with more complex forms of cohesion and linking.",
+            "phonology": "The user's pronunciation is understandable but clearly influenced by their first language, with some impact on intelligibility."
           },
-          "comment": "The user demonstrates a basic ability to communicate but would benefit from expanding their vocabulary and practicing more complex sentence structures to improve fluency and coherence. Specific action items include engaging in conversations on a variety of topics and listening to native speakers to enhance pronunciation.",
+          "comment": "The user demonstrates a basic level of English proficiency, suitable for everyday conversations but requiring significant improvement for more complex discussions or professional settings. To improve, the user should focus on expanding their vocabulary and practicing fluent speech through regular conversation practice and exposure to various spoken English materials.",
           "reasoning": {
-            "range": "The user's utterances, such as 'I am, uh, apply for the, um, marketing job' and 'I like marketing because, uh, it is interesting', demonstrate limited vocabulary and lack of precision in expressing ideas, aligning with a score of 2.",
-            "accuracy": "Examples like 'I make, uh, some project' and 'I good at computer' show basic sentence structures but frequent errors in verb tense and adjective usage, corresponding to a score of 2.",
-            "fluency": "The user's speech is characterized by frequent pauses ('uh', 'um') and simple sentence structures, indicating difficulty in maintaining a stable flow of speech, which aligns with a score of 2.",
-            "coherence": "Ideas are connected in a straightforward manner, as seen in 'I study marketing in university. I make, uh, some project', but lack variety in linking words and cohesive devices, suggesting a score of 2.",
-            "phonology": "The user's pronunciation is generally intelligible, despite noticeable first-language influence, placing it at a score of 2."
+            "range": "The user's utterances, such as 'I am, uh, apply for the, um, marketing job' and 'I like marketing because, uh, it is interesting', demonstrate a limited range of vocabulary and sentence structures, which aligns with the descriptor for a score of 2: 'Kosakata cukup untuk topik familiar (keluarga, pekerjaan, perjalanan), kadang menggunakan penjelasan tidak langsung'.",
+            "accuracy": "Examples like 'I make, uh, some project' and 'I, uh, I work before in small company' show some basic sentence structures but also frequent errors in verb tense and sentence formation, matching the descriptor for a score of 2: 'Pola tata bahasa umum dengan akurasi cukup baik dalam situasi terprediksi'.",
+            "fluency": "The user's speech is characterized by frequent pauses and fillers ('uh', 'um'), as seen in 'I am, uh, apply for the, um, marketing job', indicating difficulty in finding the right words or structures, which corresponds to a score of 2: 'Dapat dipahami tetapi sering jeda untuk merencanakan struktur bahasa'.",
+            "coherence": "The user's ability to connect ideas is basic, with simple sequencing of thoughts, as in 'I study marketing in university. I make, uh, some project', but lacks more complex linking or cohesive devices, fitting the descriptor for a score of 2: 'Ide sederhana dalam urutan cukup jelas dan linear'.",
+            "phonology": "The user's pronunciation is generally intelligible but with noticeable influence from their first language, as indicated by the frequent use of fillers and slight difficulties in word pronunciation, aligning with a score of 2: 'Umumnya dapat dipahami meskipun aksen bahasa pertama masih terlihat jelas'."
           },
           "self_check": {},
           "anchor_comparison": {}
@@ -115,26 +115,26 @@
         "transcript_B1_B2": {
           "scores": {
             "range": 4,
-            "accuracy": 4,
+            "accuracy": 3,
             "fluency": 3,
             "coherence": 4,
             "phonology": 4,
-            "overall": 3.8
+            "overall": 3.6
           },
           "descriptors": {
-            "range": "The user demonstrates a wide range of vocabulary, including some formal or less common expressions, which is characteristic of a score of 4.",
-            "accuracy": "The user exhibits high accuracy, with only occasional, minor errors that do not impede understanding, aligning with a score of 4.",
-            "fluency": "The user's speech is generally fluent but with some noticeable hesitation or reformulation, which is typical of a score of 3.",
-            "coherence": "The user's speech is well-organized and coherent, with effective use of linking words and phrases, reflecting a score of 4.",
-            "phonology": "The user's pronunciation is clear, with well-controlled intonation, stress, and rhythm, and only minor deviations from standard pronunciation, indicating a score of 4."
+            "range": "The user demonstrates a wide range of vocabulary, able to express themselves on various topics, aligning with a score of 4.",
+            "accuracy": "The user shows relatively high control over grammatical structures but with some inconsistencies, fitting a score of 3.",
+            "fluency": "The user speaks with a relatively stable tempo, occasionally hesitating, which matches a fluency score of 3.",
+            "coherence": "The user's speech is well-structured and easy to follow, indicating a coherence score of 4.",
+            "phonology": "Assuming a similar performance in speaking, the user would likely demonstrate good control over phonological features, deserving a score of 4."
           },
-          "comment": "The user presents themselves well, showcasing relevant experience and skills for the digital marketing coordinator position. To improve, they could work on enhancing their fluency by practicing more complex, spontaneous speech and consider expanding their vocabulary to include more nuanced expressions related to their field.",
+          "comment": "The user presents themselves well, showcasing relevant experience and strengths for the digital marketing coordinator position. To improve, focusing on developing more complex sentence structures and practicing fluent speech without hesitation would be beneficial. Additionally, expanding their vocabulary to include more nuanced expressions related to marketing could enhance their overall performance.",
           "reasoning": {
-            "range": "The user discusses their experience in marketing, specifically social media campaigns and data analysis, demonstrating a range of vocabulary related to their field, such as 'managing social media campaigns' and 'analyzing performance data'. This aligns with the descriptor for a score of 4, which indicates a wide range of language, including some more formal or less common vocabulary.",
-            "accuracy": "The user's sentences are mostly grammatically correct, with no major errors that impede understanding, as seen in 'I'm responsible for managing social media campaigns and analyzing the performance data'. This suggests an accuracy score of 4, reflecting high accuracy with only occasional, minor errors.",
-            "fluency": "The user responds promptly and their speech flows relatively smoothly, as in 'I think I've developed strong skills in data analysis and campaign planning'. However, there might be slight pauses or hesitations, indicating a fluency score of 3, which denotes a generally fluent delivery with some noticeable hesitation or reformulation.",
-            "coherence": "The user's narrative is logical and easy to follow, with clear connections between ideas, such as when discussing their strengths and responsibilities. This coherence is typical of a score of 4, where the speech is well-organized and coherent, with effective use of linking words and phrases.",
-            "phonology": "The user's pronunciation is generally clear, with an accent that does not significantly hinder understanding, as evidenced by the clarity of their speech in the provided examples. This suggests a phonology score of 4, indicating that the user's intonation, stress, and rhythm are well-controlled, with only minor deviations from standard pronunciation."
+            "range": "The user discusses their experience in marketing, specifically managing social media campaigns and analyzing performance data, demonstrating a range of vocabulary related to their field, such as 'data analysis' and 'campaign planning'. This aligns with the rubric descriptor for a score of 4, indicating a wide range of language, able to express themselves on various general, academic, and professional topics.",
+            "accuracy": "The user's sentences are mostly grammatically correct, such as 'I've been working in marketing for about two years' and 'I'm quite organized and I always try to meet deadlines'. However, there's a lack of complex structures, suggesting an accuracy score of 3, where control is relatively high but not consistently applied, especially in more complex sentences.",
+            "fluency": "The user responds promptly to questions and maintains a steady flow of conversation, as seen in their ability to elaborate on their experience and strengths without significant pauses. This indicates a fluency score of 3, where the tempo is relatively stable, with only slight hesitation when searching for words or phrases.",
+            "coherence": "The user's narrative is logical and easy to follow, connecting ideas about their job responsibilities and personal strengths, such as 'I think I've developed strong skills in data analysis and campaign planning' and 'I'm also a good communicator'. This suggests a coherence score of 4, where the speech is clear, structured, and flows well, with appropriate use of connectors.",
+            "phonology": "Although the user's pronunciation isn't directly assessable in this format, their written responses suggest a clear and understandable communication style, which would likely translate to a phonology score of 4 if speaking, indicating good control over intonation, rhythm, and stress patterns, with only minor influence from a non-native accent."
           },
           "self_check": {},
           "anchor_comparison": {}
@@ -145,23 +145,23 @@
             "accuracy": 5,
             "fluency": 5,
             "coherence": 5,
-            "phonology": 5,
-            "overall": 5.0
+            "phonology": 4,
+            "overall": 4.8
           },
           "descriptors": {
-            "range": "The candidate demonstrates a very high level of flexibility in using a wide range of linguistic forms to reformulate ideas.",
-            "accuracy": "The candidate shows consistent control over complex grammatical structures.",
-            "fluency": "The candidate speaks spontaneously and naturally, handling difficulties smoothly.",
-            "coherence": "The candidate's discourse is very coherent and cohesive, with various organizational patterns and connectors.",
-            "phonology": "The candidate is inferred to have full control over phonological features, delivering messages very clearly."
+            "range": "The candidate demonstrates a very high level of flexibility in using linguistic resources, able to reformulate ideas in various ways and incorporate idiomatic expressions and colloquialisms accurately.",
+            "accuracy": "The candidate exhibits consistent control over complex grammatical structures, with rare, if any, grammatical errors, even in more complex discussions.",
+            "fluency": "The candidate speaks spontaneously, with a natural flow, and is able to maintain this fluency even when discussing complex topics or responding to unexpected questions.",
+            "coherence": "The candidate's discourse is well-structured and coherent, with effective use of cohesive devices and organizational patterns that enhance the clarity of the message.",
+            "phonology": "The candidate has good control over phonological features, although the assessment is based on written text and assumes spoken proficiency would mirror this."
           },
-          "comment": "The candidate presents a strong overall impression, showcasing both depth in marketing strategy and breadth in understanding consumer psychology. For further improvement, the candidate could focus on providing more specific, data-driven examples to illustrate their points and explore how their skills can be adapted to emerging challenges in the field.",
+          "comment": "The candidate presents a strong overall impression, showcasing both analytical and creative thinking. To further improve, the candidate could focus on providing more specific metrics or data to support their claims of success, such as exact numbers or case studies. Additionally, exploring more nuanced discussions around the ethical implications of AI-driven personalization could enhance their unique perspective.",
           "reasoning": {
-            "range": "The candidate discusses 'cross-functional marketing initiatives', 'behavioral data', 'psychological triggers', and 'AI-driven personalization', demonstrating a wide range of vocabulary related to marketing and consumer psychology, thus aligning with the descriptor for a score of 5: 'Fleksibilitas sangat tinggi, mampu merumuskan ulang ide dengan berbagai bentuk linguistik, menggunakan idiom dan ekspresi sehari-hari secara presisi'.",
-            "accuracy": "The candidate's use of complex sentences, such as 'What sets my approach apart is the integration of behavioral data with creative strategy — rather than relying solely on demographic targeting, I focus on identifying psychological triggers that drive conversion', shows high accuracy in grammar and syntax, fitting the descriptor for a score of 5: 'Kontrol tata bahasa konsisten pada struktur kompleks bahkan saat merencanakan atau memantau reaksi lawan bicara'.",
-            "fluency": "The candidate's speech is 'panjang spontan, alur alami', as seen in the response 'What distinguishes me is the combination of analytical rigor and creative thinking. Many candidates excel in one or the other, but I've cultivated both through deliberate practice', indicating a score of 5: 'Berbicara panjang spontan, alur alami, mengatasi kesulitan secara halus tanpa disadari lawan bicara'.",
-            "coherence": "The candidate's narrative is 'sangat koheren dan kohesif', with clear connections between ideas, such as transitioning from discussing their background to explaining what sets them apart, which aligns with the descriptor for a score of 5: 'Wacana sangat koheren dan kohesif, berbagai pola organisasi, konektor beragam'.",
-            "phonology": "Although not directly observable in text, the candidate's written responses suggest a high level of control over linguistic features, implying a similar level of proficiency in phonology, thus potentially scoring 5: 'Kontrol penuh fitur fonologis (stress, rhythm, intonation), pesan tersampaikan sangat jelas'."
+            "range": "The candidate discusses their background in digital marketing and consumer psychology, mentioning 'cross-functional marketing initiatives', 'behavioral data', 'creative strategy', 'psychological triggers', and 'AI-driven personalization'. These terms indicate a wide range of vocabulary related to marketing, suggesting a high level of flexibility in using various linguistic forms to express ideas. For example, the phrase 'integration of behavioral data with creative strategy' showcases the ability to merge complex concepts into a coherent narrative.",
+            "accuracy": "The candidate's speech is largely free of grammatical errors, as seen in sentences like 'What sets my approach apart is the integration of behavioral data with creative strategy'. This level of accuracy in using complex sentence structures, such as the use of subordinate clauses ('what sets my approach apart'), demonstrates a strong command of English grammar.",
+            "fluency": "The candidate's responses are spontaneous and well-structured, with a natural flow, as observed in the transition between discussing their experience and highlighting what sets them apart. This fluency is evident in the smooth connection between ideas, such as moving from 'I've led cross-functional marketing initiatives' to 'What sets my approach apart'.",
+            "coherence": "The candidate's narrative is coherent and well-organized, starting with an introduction to their background, followed by specific examples of their experience, and concluding with what distinguishes them from other candidates. This coherence is demonstrated by the logical progression of ideas, such as explaining their approach and then providing evidence of its effectiveness.",
+            "phonology": "Although the text does not provide direct evidence of phonological features like intonation, rhythm, or stress, the written language suggests a high level of control over linguistic features that contribute to clear and effective communication. The use of complex sentences and varied vocabulary implies a strong foundation in phonological aspects, assuming the candidate's spoken English mirrors their written proficiency."
           },
           "self_check": {},
           "anchor_comparison": {}
@@ -172,7 +172,7 @@
         "accuracy": 2.333,
         "fluency": 2.333,
         "coherence": 2.333,
-        "phonology": 2.333
+        "phonology": 1.333
       }
     },
     "variant_C_anchored": {
@@ -190,11 +190,11 @@
           "descriptors": {
             "range": "The user's vocabulary is limited to familiar topics and basic phrases, with little ability to rephrase or use idiomatic expressions.",
             "accuracy": "The user makes basic errors in grammar and sentence structure, which sometimes hinder understanding.",
-            "fluency": "The user's speech is marked by frequent hesitations, pauses, and repetitions, making it difficult to maintain a natural flow.",
+            "fluency": "The user's speech is marked by frequent hesitations, pauses, and repetitions, indicating difficulty in finding the right words or structures.",
             "coherence": "The user's ideas are connected in a simple, linear fashion, with little use of cohesive devices or transitional phrases.",
-            "phonology": "The user's pronunciation is understandable but heavily influenced by their native accent, with some difficulty in distinguishing between similar sounds."
+            "phonology": "The user's pronunciation is understandable but heavily influenced by their first language, with noticeable accent and intonation patterns."
           },
-          "comment": "The user's language proficiency is estimated to be at the B1 level, with strengths in basic communication but areas for improvement in vocabulary, grammar, and fluency. To improve, the user should focus on expanding their vocabulary, practicing more complex sentence structures, and working on their pronunciation.",
+          "comment": "The user's language proficiency is estimated to be at the B1 level, with strengths in basic communication and weaknesses in vocabulary range, grammatical accuracy, and fluency. Improvement areas include expanding vocabulary, practicing grammar, and enhancing pronunciation.",
           "reasoning": {},
           "self_check": {
             "range_consistent": true,
@@ -206,15 +206,78 @@
           },
           "anchor_comparison": {
             "closest_example": "A",
-            "rationale": "The user's utterances are similar to Example A in terms of limited vocabulary, basic sentence structure, and frequent hesitations."
+            "rationale": "The user's utterances are similar to Example A in terms of limited vocabulary, basic sentence structures, and frequent hesitations."
           }
         },
         "transcript_B1_B2": {
-          "error": "Client error '429 Too Many Requests' for url 'https://api.groq.com/openai/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+          "scores": {
+            "range": 3,
+            "accuracy": 3,
+            "fluency": 3,
+            "coherence": 3,
+            "phonology": 3,
+            "overall": 3.0
+          },
+          "descriptors": {
+            "range": "The user's vocabulary is adequate for discussing professional topics, such as marketing and campaign planning, but may not be varied or nuanced for highly complex discussions.",
+            "accuracy": "The user's grammar is mostly accurate, with few noticeable errors, but may not demonstrate complete control over complex structures.",
+            "fluency": "The user's speech is characterized by a stable tempo, with some pauses to gather thoughts, but overall is easy to follow.",
+            "coherence": "The user's ideas are logically connected, using some cohesive devices, but may not always be smooth or natural-sounding.",
+            "phonology": "The user's pronunciation is generally clear, with a minor influence from their native accent, but does not significantly impede understanding."
+          },
+          "comment": "Based on the conversation, the user's language proficiency is estimated to be at the B2 level, demonstrating strengths in discussing professional topics and analyzing data. Areas for improvement include increasing vocabulary range and nuance, as well as refining grammatical accuracy and fluency.",
+          "reasoning": {},
+          "self_check": {
+            "range_consistent": true,
+            "accuracy_consistent": true,
+            "fluency_consistent": true,
+            "coherence_consistent": true,
+            "phonology_consistent": true,
+            "revisions_made": "none"
+          },
+          "anchor_comparison": {
+            "closest_example": "B",
+            "rationale": "The user's utterances demonstrate a range of vocabulary adequate for professional topics, mostly accurate grammar, and a stable tempo, similar to Example B."
+          }
         },
         "transcript_B2_C1": {
-          "error": "Client error '429 Too Many Requests' for url 'https://api.groq.com/openai/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+          "scores": {
+            "range": 5,
+            "accuracy": 5,
+            "fluency": 5,
+            "coherence": 5,
+            "phonology": 4,
+            "overall": 4.8
+          },
+          "descriptors": {
+            "range": "The user exhibits a very wide range of vocabulary, including specialized terms like 'cross-functional marketing initiatives,' 'behavioral data,' and 'psychological triggers,' which suggests a high level of flexibility in expressing ideas.",
+            "accuracy": "The user's language is virtually error-free, with complex sentences structured accurately and appropriately, indicating a strong command of grammatical rules.",
+            "fluency": "The user speaks spontaneously, with a natural flow that indicates a high degree of fluency, able to articulate detailed thoughts without hesitation.",
+            "coherence": "The user's discourse is well-organized and logically connected, using a variety of cohesive devices to link ideas together seamlessly.",
+            "phonology": "While the user's pronunciation is generally clear, there might be a slight influence of a non-native accent, but it does not impede understanding."
+          },
+          "comment": "The user demonstrates a mastery of English, corresponding to a C2 level on the CEFR scale, with exceptional strengths in articulating complex ideas and integrating specialized knowledge. Areas for improvement are minimal, but could include further refinement in pronunciation to achieve complete native-like fluency.",
+          "reasoning": {},
+          "self_check": {
+            "range_consistent": true,
+            "accuracy_consistent": true,
+            "fluency_consistent": true,
+            "coherence_consistent": true,
+            "phonology_consistent": true,
+            "revisions_made": "none"
+          },
+          "anchor_comparison": {
+            "closest_example": "C",
+            "rationale": "The user's utterances demonstrate a high level of sophistication in vocabulary, complex sentence structures, and the ability to articulate nuanced ideas, aligning closely with the characteristics of Example C."
+          }
         }
+      },
+      "score_variance": {
+        "range": 2.333,
+        "accuracy": 2.333,
+        "fluency": 2.333,
+        "coherence": 2.333,
+        "phonology": 1
       }
     }
   },
@@ -230,18 +293,18 @@
       {
         "variant": "variant_B_cot",
         "transcript_A2_B1_overall": 2.0,
-        "transcript_B1_B2_overall": 3.8,
-        "transcript_B2_C1_overall": 5.0,
-        "avg_variance": 2.333
+        "transcript_B1_B2_overall": 3.6,
+        "transcript_B2_C1_overall": 4.8,
+        "avg_variance": 2.133
       },
       {
         "variant": "variant_C_anchored",
         "transcript_A2_B1_overall": 2.0,
-        "transcript_B1_B2_overall": "—",
-        "transcript_B2_C1_overall": "—",
-        "avg_variance": "—"
+        "transcript_B1_B2_overall": 3.0,
+        "transcript_B2_C1_overall": 4.8,
+        "avg_variance": 2.066
       }
     ],
-    "recommendation": "Prompt 'variant_A_direct' menunjukkan konsistensi tertinggi (avg variance = 2.333).\nNamun tetap lakukan validasi dengan ground truth dari rater manusia menggunakan inter-rater reliability (Cohen's Kappa atau Pearson correlation)."
+    "recommendation": "Prompt 'variant_C_anchored' menunjukkan konsistensi tertinggi (avg variance = 2.066).\nNamun tetap lakukan validasi dengan ground truth dari rater manusia menggunakan inter-rater reliability (Cohen's Kappa atau Pearson correlation)."
   }
 }

@@ -47,9 +47,8 @@ async def transcribe_audio(
         "model":       "whisper-large-v3",
         "temperature": 0.0,
         "prompt":      "English speaking practice session. The speaker may have an Indonesian accent.",
+        "language":    language or "en",  # Force English to prevent auto-detection & translation
     }
-    if language:
-        data["language"] = language
 
     # Save audio file
     user_id = int(current_user["sub"])
@@ -216,7 +215,7 @@ _SCENARIO_VOICE: dict[str, str] = {
 _EDGE_FALLBACK: dict[str, str] = {
     "1":     "en-US-GuyNeural",
     "2":     "en-US-AriaNeural",
-    "3":     "en-US-DavisNeural",
+    "3":     "en-US-RogerNeural",    # Business (changed from DavisNeural which doesn't exist)
     "4":     "en-US-JennyNeural",
     "agent": "en-US-GuyNeural",
 }
