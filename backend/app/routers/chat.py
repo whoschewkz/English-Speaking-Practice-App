@@ -201,9 +201,11 @@ async def chat_open(
 import asyncio as _asyncio
 import io as _io
 import wave as _wave
+import subprocess as _subprocess
 from pathlib import Path as _Path
 
 # Piper: male=Ryan, female=Amy — per skenario
+_PIPER_BIN       = _Path.home() / "piper" / "piper"
 _PIPER_VOICES_DIR = _Path.home() / "piper-voices"
 _SCENARIO_VOICE: dict[str, str] = {
     "1":     "en_US-ryan-medium",   # Job Interview  — formal, male
@@ -215,23 +217,30 @@ _SCENARIO_VOICE: dict[str, str] = {
 _EDGE_FALLBACK: dict[str, str] = {
     "1":     "en-US-GuyNeural",
     "2":     "en-US-AriaNeural",
-    "3":     "en-US-RogerNeural",    # Business (changed from DavisNeural which doesn't exist)
+    "3":     "en-US-RogerNeural",
     "4":     "en-US-JennyNeural",
     "agent": "en-US-GuyNeural",
 }
-_piper_cache: dict = {}   # cache model agar tidak reload tiap request
 
 
 def _synth_piper(text: str, voice_name: str) -> bytes:
-    """Jalankan Piper secara sinkron di thread pool."""
-    from piper import PiperVoice
-    if voice_name not in _piper_cache:
-        onnx = _PIPER_VOICES_DIR / f"{voice_name}.onnx"
-        _piper_cache[voice_name] = PiperVoice.load(str(onnx))
-    voice = _piper_cache[voice_name]
+    """Panggil Piper binary via subprocess, kembalikan WAV bytes."""
+    onnx = _PIPER_VOICES_DIR / f"{voice_name}.onnx"
+    result = _subprocess.run(
+        [str(_PIPER_BIN), "--model", str(onnx), "--output-raw"],
+        input=text.encode(),
+        capture_output=True,
+        timeout=30,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.decode())
+    # Wrap raw PCM (22050Hz mono 16-bit) ke WAV
     buf = _io.BytesIO()
     with _wave.open(buf, "w") as wf:
-        voice.synthesize(text, wf)
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(22050)
+        wf.writeframes(result.stdout)
     buf.seek(0)
     return buf.read()
 
@@ -242,12 +251,12 @@ async def text_to_speech(
     scenarioId: str = Body("agent"),
     current_user: dict = Depends(require_user),
 ):
-    """Piper TTS (lokal, ~100-300ms) dengan fallback ke edge-tts jika model belum ada."""
+    """Piper binary TTS (lokal) dengan fallback ke edge-tts."""
     voice_name = _SCENARIO_VOICE.get(scenarioId, "en_US-ryan-medium")
     onnx_path  = _PIPER_VOICES_DIR / f"{voice_name}.onnx"
 
-    # Gunakan Piper kalau model sudah didownload di server
-    if onnx_path.exists():
+    # Gunakan Piper binary kalau binary + model tersedia
+    if _PIPER_BIN.exists() and onnx_path.exists():
         try:
             loop        = _asyncio.get_event_loop()
             audio_bytes = await loop.run_in_executor(None, _synth_piper, text[:3000], voice_name)
@@ -255,7 +264,7 @@ async def text_to_speech(
         except Exception as e:
             print(f"[TTS] Piper error: {e} — falling back to edge-tts", flush=True)
 
-    # Fallback: edge-tts (pakai saat develop lokal atau model belum ada di server)
+    # Fallback: edge-tts (untuk lokal dev / jika Piper belum diinstall)
     try:
         import edge_tts
         edge_voice  = _EDGE_FALLBACK.get(scenarioId, "en-US-GuyNeural")
@@ -264,7 +273,9 @@ async def text_to_speech(
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
                 audio_bytes += chunk["data"]
-        return Response(content=audio_bytes, media_type="audio/mpeg")
+        if audio_bytes:
+            return Response(content=audio_bytes, media_type="audio/mpeg")
+        raise RuntimeError("empty audio")
     except Exception as e:
-        print(f"[TTS] edge-tts fallback error: {e}", flush=True)
+        print(f"[TTS] edge-tts error: {e}", flush=True)
         return JSONResponse({"error": "tts_unavailable"}, status_code=500)
