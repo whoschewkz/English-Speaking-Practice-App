@@ -17,7 +17,11 @@ export const TokenStore = {
   getRefresh():  string | null { return typeof window !== "undefined" ? sessionStorage.getItem("refresh_token") : null; },
   getRole():     string | null { return typeof window !== "undefined" ? sessionStorage.getItem("role")          : null; },
   getUsername(): string | null { return typeof window !== "undefined" ? sessionStorage.getItem("username")      : null; },
-  isLoggedIn():  boolean       { return !!this.getAccess(); },
+  isLoggedIn():  boolean       {
+    const ok = !!this.getAccess();
+    if (!ok) this.clear(); // clear stale cookies if sessionStorage is empty
+    return ok;
+  },
   clear() {
     if (typeof window === "undefined") return;
     sessionStorage.removeItem("access_token");
