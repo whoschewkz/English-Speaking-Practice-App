@@ -68,7 +68,7 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
       _refreshQueue = [];
       if (!newToken) {
         if (typeof window !== "undefined") window.location.href = "/auth";
-        throw new Error("Session berakhir. Silakan login kembali.");
+        return new Response(null, { status: 401 });
       }
       headers.set("Authorization", `Bearer ${newToken}`);
       res = await fetch(url, { ...options, headers });
@@ -91,19 +91,18 @@ export async function authFetchForm(url: string, formData: FormData): Promise<Re
 }
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
-export async function logout() {
+export function logout() {
   const refreshToken = TokenStore.getRefresh();
-  if (refreshToken) {
-    try {
-      await fetch(`${API_BASE}/api/auth/logout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-    } catch {}
-  }
   TokenStore.clear();
   window.location.href = "/auth";
+  // Fire-and-forget: invalidate refresh token di server (best effort)
+  if (refreshToken) {
+    fetch(`${API_BASE}/api/auth/logout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    }).catch(() => {});
+  }
 }
 
 // ─── useAuth hook ─────────────────────────────────────────────────────────────
