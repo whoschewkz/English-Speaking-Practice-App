@@ -113,7 +113,8 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
   const [isRec,        setIsRec]        = useState(false);
   const [transcript,   setTranscript]   = useState("");
   const [recError,     setRecError]     = useState<string|null>(null);
-  const [audioPaths,   setAudioPaths]   = useState<string[]>([]);   // semua turn terekam
+  const [audioPaths,         setAudioPaths]         = useState<string[]>([]);   // semua user turn terekam
+  const [conversationTurns, setConversationTurns] = useState<{role:"user"|"assistant"; path:string}[]>([]); // urutan lengkap user+AI
   const [thinking,     setThinking]     = useState(false);
   const [agentTitle,     setAgentTitle]     = useState("");
   const [agentLevel,     setAgentLevel]     = useState<number|null>(null);
@@ -172,6 +173,9 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
         body:    JSON.stringify({ text, scenarioId: isAgent ? "agent" : id }),
       });
       if (!r.ok) { setIsSpeaking(false); return; }
+      // Catat path AI audio untuk riwayat percakapan rater
+      const aiPath = r.headers.get("X-Audio-Path");
+      if (aiPath) setConversationTurns(p => [...p, { role: "assistant", path: aiPath }]);
       const blob  = await r.blob();
       const url   = URL.createObjectURL(blob);
       const audio = new Audio(url);
@@ -317,7 +321,10 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
       const d=await r.json();
       const t=d?.text||"";
       setTranscript(t);
-      if (d?.audio_path) setAudioPaths(p => [...p, d.audio_path]);
+      if (d?.audio_path) {
+        setAudioPaths(p => [...p, d.audio_path]);
+        setConversationTurns(p => [...p, { role: "user", path: d.audio_path }]);
+      }
       if (t) await sendToAI(t);
       else setMsgs(p=>[...p,{role:"assistant",content:"Suara tidak terdengar jelas. Coba lagi."}]);
     } catch { setPendingBlob(blob); }
@@ -386,7 +393,8 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
             score_range:clip(s.range), score_accuracy:clip(s.accuracy),
             score_fluency:clip(s.fluency), score_coherence:clip(s.coherence),
             score_phonology:clip(s.phonology), comment:fbJson.comment||"", duration_min:dur,
-            audio_paths:audioPaths,   // kirim semua turn — backend concatenate jadi satu file
+            audio_paths:audioPaths,            // user-only concat (fallback lama)
+            conversation_turns:conversationTurns, // urutan lengkap user+AI untuk rater
           }),
         });
       } else { setFbRaw(fbJson?.content||"Tidak ada feedback yang dihasilkan."); }
@@ -427,7 +435,8 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
     stopTTS();
     if (isAgent&&planData?.scenario) setAgentTitle(planData.scenario);
     setEnded(false); setFeedback(null); setFbRaw(""); setDescriptors(null); setObjective(null);
-    setReflectData(null); setPlanData(null); setTranscript(""); setAudioPaths([]); setStartAt(Date.now());
+    setReflectData(null); setPlanData(null); setTranscript(""); setAudioPaths([]);
+    setConversationTurns([]); setStartAt(Date.now());
     setMsgs([{role:"assistant",content:starter||(isAgent?"Let's continue!":mapOpen(id))}]);
   };
 
@@ -483,7 +492,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
             <div className="w-px h-4" style={{ background:"var(--border2)" }} />
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full" style={{ background:statusColor, boxShadow:isRec?`0 0 5px var(--danger)`:undefined }} />
-              <span className="text-xs font-medium hidden sm:inline" style={{ color:statusColor }}>{statusLabel}</span>
+              <span className="text-xs font-medium" style={{ color:statusColor }}>{statusLabel}</span>
             </div>
           </div>
           {/* Theme */}
@@ -742,7 +751,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
               )}
               <div className="flex gap-3">
                 {!isRec ? (
-                  <button onClick={startRec} disabled={thinking||fbLoading||isTranscribing}
+                  <button onClick={startRec} disabled={thinking||fbLoading||isTranscribing||isSpeaking}
                     className="flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-sm font-medium border transition-all active:scale-[0.98] disabled:opacity-40"
                     style={{ color:"var(--text2)", background:"var(--surface)", borderColor:"var(--border2)" }}
                     onMouseEnter={e=>{if(!thinking&&!fbLoading){

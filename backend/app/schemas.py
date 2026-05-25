@@ -121,17 +121,18 @@ class UserOut(BaseModel):
 
 
 class SaveSessionIn(BaseModel):
-    scenario:        str
-    score_range:     float
-    score_accuracy:  float
-    score_fluency:   float
-    score_coherence: float
-    score_phonology: float
-    comment:         Optional[str]        = None
-    duration_min:    Optional[float]      = 0.0
-    audio_path:      Optional[str]        = None   # backward compat (single)
-    audio_paths:     Optional[List[str]]  = None   # semua recording turn dalam sesi
-    user_id:         Optional[int]        = None   # diisi dari token, bukan dari body
+    scenario:           str
+    score_range:        float
+    score_accuracy:     float
+    score_fluency:      float
+    score_coherence:    float
+    score_phonology:    float
+    comment:            Optional[str]        = None
+    duration_min:       Optional[float]      = 0.0
+    audio_path:         Optional[str]        = None   # backward compat (single)
+    audio_paths:        Optional[List[str]]  = None   # semua user recording turn dalam sesi
+    conversation_turns: Optional[List[dict]] = None   # [{role, path}] urutan lengkap user+AI
+    user_id:            Optional[int]        = None   # diisi dari token, bukan dari body
 
 
 class ScenarioIn(BaseModel):

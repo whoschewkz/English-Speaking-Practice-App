@@ -26,9 +26,13 @@ def rater_list_sessions(
     """Sessions untuk rater — skor AI disembunyikan, status rater lain juga disembunyikan."""
     my_id = _rater_id_from_role(current_user.get("role", "rater1"))
 
+    # Tampilkan sesi yang punya audio apapun: turn-by-turn (full_audio_json) atau gabungan lama (audio_path)
     sessions = db.execute(
         sa_select(SessionRecordORM)
-        .where(SessionRecordORM.audio_path.isnot(None))
+        .where(
+            (SessionRecordORM.full_audio_json.isnot(None)) |
+            (SessionRecordORM.audio_path.isnot(None))
+        )
         .order_by(desc(SessionRecordORM.created_at))
         .limit(limit)
     ).scalars().all()
@@ -43,14 +47,14 @@ def rater_list_sessions(
         ).scalar_one_or_none()
 
         result.append({
-            "id":             s.id,
-            "scenario":       s.scenario,
-            "audio_path":     s.audio_path,
-            "duration_min":   s.duration_min,
-            "created_at":     s.created_at.isoformat(),
-            # Tidak ada ai_scores, tidak ada info rater lain
-            "my_rater_id":    my_id,
-            "my_rating_done": my_assessment is not None,
+            "id":               s.id,
+            "scenario":         s.scenario,
+            "audio_path":       s.audio_path,       # fallback: file gabungan user-only (sesi lama)
+            "full_audio_json":  s.full_audio_json,  # turn-by-turn [{role, path}] (sesi baru)
+            "duration_min":     s.duration_min,
+            "created_at":       s.created_at.isoformat(),
+            "my_rater_id":      my_id,
+            "my_rating_done":   my_assessment is not None,
         })
     return result
 

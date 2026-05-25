@@ -3,14 +3,17 @@ import { useEffect, useState } from "react";
 import { authFetch, TokenStore } from "@/utils/auth";
 import { useTheme, Icon } from "@/components/shared";
 
+type ConversationTurn = { role: "user" | "assistant"; path: string };
+
 type RaterSession = {
   id: number;
   scenario: string;
-  audio_path: string | null;
+  audio_path: string | null;       // fallback: file gabungan user-only (sesi lama)
+  full_audio_json: string | null;  // JSON: [{role, path}] urutan lengkap user+AI (sesi baru)
   duration_min: number;
   created_at: string;
-  my_rater_id:    number;   // 1 atau 2, dari role login
-  my_rating_done: boolean;  // apakah SAYA sudah menilai sesi ini
+  my_rater_id:    number;
+  my_rating_done: boolean;
 };
 
 const DIMS = [
@@ -20,6 +23,57 @@ const DIMS = [
   { key: "coherence", label: "Koherensi" },
   { key: "phonology", label: "Pelafalan" },
 ];
+
+type RubricLevel = { score: number; label: string; color: string; text: string };
+const RUBRIC: Record<string, { desc: string; levels: RubricLevel[] }> = {
+  range: {
+    desc: "Keragaman dan ketepatan kosakata yang digunakan sepanjang sesi.",
+    levels: [
+      { score: 1, label: "Lemah",       color: "var(--danger)", text: "Kosakata sangat terbatas; sering mengulang kata yang sama dan kesulitan mengungkapkan ide dengan tepat." },
+      { score: 3, label: "Cukup",       color: "var(--warn)",   text: "Kosakata memadai untuk topik sehari-hari; sesekali parafrase karena tidak tahu kata yang tepat." },
+      { score: 5, label: "Sangat Baik", color: "var(--accent)", text: "Kosakata luas, variatif, dan idiomatik; memilih kata yang tepat dengan natural dan percaya diri." },
+    ],
+  },
+  accuracy: {
+    desc: "Ketepatan struktur kalimat dan tata bahasa secara keseluruhan.",
+    levels: [
+      { score: 1, label: "Lemah",       color: "var(--danger)", text: "Banyak kesalahan struktur dasar yang sering mengganggu pemahaman pendengar." },
+      { score: 3, label: "Cukup",       color: "var(--warn)",   text: "Struktur kalimat sederhana umumnya benar; kesalahan muncul pada konstruksi yang lebih kompleks." },
+      { score: 5, label: "Sangat Baik", color: "var(--accent)", text: "Menguasai berbagai struktur gramatikal; kesalahan sangat jarang dan tidak mengganggu makna." },
+    ],
+  },
+  fluency: {
+    desc: "Kelancaran berbicara tanpa jeda yang mengganggu atau filler berlebihan.",
+    levels: [
+      { score: 1, label: "Lemah",       color: "var(--danger)", text: "Banyak jeda panjang dan terhenti; penggunaan filler (uh, um, like) sangat berlebihan." },
+      { score: 3, label: "Cukup",       color: "var(--warn)",   text: "Bicara cukup lancar; ada jeda atau filler sesekali namun tidak mengganggu komunikasi." },
+      { score: 5, label: "Sangat Baik", color: "var(--accent)", text: "Bicara mengalir natural; jeda wajar dan bermakna, ritme mendekati penutur asli." },
+    ],
+  },
+  coherence: {
+    desc: "Kemampuan menyusun dan menghubungkan gagasan secara logis dan mudah diikuti.",
+    levels: [
+      { score: 1, label: "Lemah",       color: "var(--danger)", text: "Ide tidak terorganisir dan sulit diikuti; hampir tidak ada penghubung antar gagasan." },
+      { score: 3, label: "Cukup",       color: "var(--warn)",   text: "Ide cukup jelas; menggunakan penghubung sederhana (then, so, but) dengan cukup konsisten." },
+      { score: 5, label: "Sangat Baik", color: "var(--accent)", text: "Gagasan terstruktur dengan baik; menggunakan discourse markers (firstly, however, in conclusion) secara tepat." },
+    ],
+  },
+  phonology: {
+    desc: "Kejelasan pengucapan, ketepatan tekanan kata, dan intonasi.",
+    levels: [
+      { score: 1, label: "Lemah",       color: "var(--danger)", text: "Pengucapan sering tidak jelas; tekanan kata dan intonasi sangat tidak natural sehingga sulit dipahami." },
+      { score: 3, label: "Cukup",       color: "var(--warn)",   text: "Dapat dipahami meski ada aksen; tekanan kata atau intonasi kadang tidak tepat." },
+      { score: 5, label: "Sangat Baik", color: "var(--accent)", text: "Pengucapan jelas dan natural; tekanan kata dan intonasi tepat, sangat mudah dipahami." },
+    ],
+  },
+};
+
+function getRubricLevel(dimKey: string, score: number): RubricLevel {
+  const levels = RUBRIC[dimKey]?.levels ?? [];
+  if (score <= 2.0) return levels[0];
+  if (score <= 3.5) return levels[1];
+  return levels[2];
+}
 
 export default function RaterPage() {
   const API = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
@@ -33,9 +87,10 @@ export default function RaterPage() {
   const [selected,  setSelected]  = useState<RaterSession | null>(null);
   const [scores,    setScores]    = useState<Record<string, number>>({});
   const [notes,     setNotes]     = useState("");
-  const [saving,    setSaving]    = useState(false);
-  const [success,   setSuccess]   = useState<string | null>(null);
-  const [err,       setErr]       = useState<string | null>(null);
+  const [saving,     setSaving]    = useState(false);
+  const [success,    setSuccess]   = useState<string | null>(null);
+  const [err,        setErr]       = useState<string | null>(null);
+  const [showRubric, setShowRubric] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -60,7 +115,7 @@ export default function RaterPage() {
 
   const selectSession = (s: RaterSession) => {
     setSelected(s);
-    setScores({});
+    setScores(Object.fromEntries(DIMS.map(d => [d.key, 3])));
     setNotes("");
     setErr(null);
   };
@@ -256,14 +311,62 @@ export default function RaterPage() {
                 <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "var(--text3)" }}>
                   Rekaman Audio — {selected.scenario}
                 </p>
-                {selected.audio_path ? (
-                  <audio key={selected.id} controls className="w-full" style={{ borderRadius: 12 }}>
-                    <source src={`${API}/uploads/audio/${selected.audio_path}`} type="audio/wav" />
-                    Browser tidak support audio
-                  </audio>
-                ) : (
-                  <p className="text-sm" style={{ color: "var(--danger)" }}>Audio tidak tersedia</p>
-                )}
+
+                {(() => {
+                  // Sesi baru: tampilkan per turn
+                  const turns: ConversationTurn[] = (() => {
+                    try { return selected.full_audio_json ? JSON.parse(selected.full_audio_json) : null; }
+                    catch { return null; }
+                  })();
+
+                  if (turns && turns.length > 0) {
+                    return (
+                      <div className="space-y-3">
+                        {turns.map((t, i) => {
+                          const isUser = t.role === "user";
+                          const ext    = t.path.endsWith(".mp3") ? "audio/mpeg" : "audio/wav";
+                          return (
+                            <div key={i} className="rounded-2xl p-3 border"
+                              style={{
+                                background:   isUser ? "var(--surface2)" : "var(--accent-dim)",
+                                borderColor:  isUser ? "var(--border2)"  : "var(--accent-border)",
+                              }}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                                  style={{
+                                    background: isUser ? "var(--surface)"    : "var(--accent)",
+                                    color:      isUser ? "var(--text2)"      : "#0c0c10",
+                                    border:     isUser ? "1px solid var(--border2)" : "none",
+                                  }}>
+                                  {isUser ? "User" : "AI"}
+                                </span>
+                                <span className="text-xs" style={{ color: "var(--text3)" }}>
+                                  Turn {Math.floor(i / 2) + 1}{isUser ? "" : " · respons"}
+                                </span>
+                              </div>
+                              <audio controls className="w-full" style={{ height: 36 }}>
+                                <source src={`${API}/uploads/audio/${t.path}`} type={ext} />
+                              </audio>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+
+                  // Sesi lama: fallback satu file gabungan
+                  if (selected.audio_path) {
+                    return (
+                      <audio key={selected.id} controls className="w-full" style={{ borderRadius: 12 }}>
+                        <source src={`${API}/uploads/audio/${selected.audio_path}`} type="audio/wav" />
+                        Browser tidak support audio
+                      </audio>
+                    );
+                  }
+
+                  return <p className="text-sm" style={{ color: "var(--danger)" }}>Audio tidak tersedia</p>;
+                })()}
+
                 <div className="grid grid-cols-3 gap-4 mt-4 text-xs">
                   <div>
                     <p style={{ color: "var(--text3)" }}>Durasi</p>
@@ -295,8 +398,19 @@ export default function RaterPage() {
                   <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text3)" }}>
                     Form Penilaian
                   </p>
-                  {/* Rater ID otomatis dari login — tidak bisa dipilih */}
                   <div className="flex gap-2">
+                    <button onClick={() => setShowRubric(v => !v)}
+                      className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all flex items-center gap-1.5"
+                      style={{
+                        color:       showRubric ? "#0c0c10"          : "var(--text2)",
+                        background:  showRubric ? "var(--accent)"    : "var(--surface2)",
+                        borderColor: showRubric ? "var(--accent)"    : "var(--border2)",
+                      }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>
+                      </svg>
+                      Panduan Penilaian
+                    </button>
                     <span className="px-4 py-1.5 rounded-xl text-xs font-bold border"
                       style={{ color:"#0c0c10", background:"var(--accent)", borderColor:"var(--accent)" }}>
                       Rater {myRaterNum}{selected.my_rating_done ? " ✓" : ""}
@@ -304,24 +418,68 @@ export default function RaterPage() {
                   </div>
                 </div>
 
-                <div className="space-y-5">
-                  {DIMS.map(d => (
-                    <div key={d.key}>
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-sm font-medium" style={{ color: "var(--text)" }}>{d.label}</label>
-                        <span className="text-sm font-bold" style={{ color: scores[d.key] ? "var(--accent)" : "var(--text3)" }}>
-                          {scores[d.key]?.toFixed(1) ?? "—"} / 5
-                        </span>
-                      </div>
-                      <input type="range" min="1" max="5" step="0.5"
-                        value={scores[d.key] ?? 3}
-                        onChange={e => setScores(p => ({ ...p, [d.key]: parseFloat(e.target.value) }))}
-                        className="w-full" />
-                      <div className="flex justify-between text-[10px] mt-0.5" style={{ color: "var(--text3)" }}>
-                        <span>1 — Lemah</span><span>3 — Cukup</span><span>5 — Sangat Baik</span>
-                      </div>
+                {/* Panel panduan rubrik — collapsible */}
+                {showRubric && (
+                  <div className="mb-6 rounded-2xl overflow-hidden border" style={{ borderColor: "var(--border)" }}>
+                    <div className="px-4 py-2.5 border-b" style={{ background: "var(--surface2)", borderColor: "var(--border)" }}>
+                      <p className="text-xs font-semibold" style={{ color: "var(--text2)" }}>
+                        Rubrik Penilaian CEFR — deskriptor per dimensi
+                      </p>
                     </div>
-                  ))}
+                    <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+                      {DIMS.map(d => (
+                        <div key={d.key} className="px-4 py-3">
+                          <p className="text-xs font-bold mb-1" style={{ color: "var(--text)" }}>{d.label}</p>
+                          <p className="text-[11px] mb-2" style={{ color: "var(--text3)" }}>{RUBRIC[d.key].desc}</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {RUBRIC[d.key].levels.map(lv => (
+                              <div key={lv.score} className="rounded-xl p-2.5 border"
+                                style={{ background: `color-mix(in srgb, ${lv.color} 6%, transparent)`, borderColor: `color-mix(in srgb, ${lv.color} 25%, transparent)` }}>
+                                <p className="text-[10px] font-bold mb-1" style={{ color: lv.color }}>
+                                  {lv.score} — {lv.label}
+                                </p>
+                                <p className="text-[10px] leading-snug" style={{ color: "var(--text2)" }}>{lv.text}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-5">
+                  {DIMS.map(d => {
+                    const currentScore = scores[d.key];
+                    const hint = currentScore != null ? getRubricLevel(d.key, currentScore) : null;
+                    return (
+                      <div key={d.key}>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-sm font-medium" style={{ color: "var(--text)" }}>{d.label}</label>
+                          <span className="text-sm font-bold" style={{ color: currentScore ? "var(--accent)" : "var(--text3)" }}>
+                            {currentScore?.toFixed(1) ?? "—"} / 5
+                          </span>
+                        </div>
+                        <input type="range" min="1" max="5" step="0.5"
+                          value={currentScore ?? 3}
+                          onChange={e => setScores(p => ({ ...p, [d.key]: parseFloat(e.target.value) }))}
+                          className="w-full" />
+                        <div className="flex justify-between text-[10px] mt-0.5 mb-1.5" style={{ color: "var(--text3)" }}>
+                          <span>1 — Lemah</span><span>3 — Cukup</span><span>5 — Sangat Baik</span>
+                        </div>
+                        {/* Hint dinamis — berubah sesuai skor yang dipilih */}
+                        {hint && (
+                          <div className="flex items-start gap-2 px-3 py-2 rounded-xl"
+                            style={{ background: `color-mix(in srgb, ${hint.color} 7%, transparent)`, border: `1px solid color-mix(in srgb, ${hint.color} 20%, transparent)` }}>
+                            <span className="text-[10px] font-bold mt-px flex-shrink-0" style={{ color: hint.color }}>
+                              {hint.label}
+                            </span>
+                            <p className="text-[10px] leading-snug" style={{ color: "var(--text2)" }}>{hint.text}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
 
                   <div>
                     <label className="text-sm font-medium block mb-2" style={{ color: "var(--text)" }}>

@@ -130,7 +130,7 @@ export default function AdminPage() {
       const pf: Record<string,number> = {};
       for (const d of RATER_DIMS) { if (existing[d.key]!=null) pf[d.key]=existing[d.key]; }
       setRaterScores(pf);
-    } else { setRaterScores({}); }
+    } else { setRaterScores(Object.fromEntries(RATER_DIMS.map(d => [d.key, 3]))); }
   }, [raterNum, selectedRaterSes]);
 
   const fetchAll = async () => {
@@ -182,7 +182,7 @@ export default function AdminPage() {
       const pf: Record<string,number> = {};
       for (const d of RATER_DIMS) { if (existing[d.key]!=null) pf[d.key]=existing[d.key]; }
       setRaterScores(pf);
-    } else { setRaterScores({}); }
+    } else { setRaterScores(Object.fromEntries(RATER_DIMS.map(d => [d.key, 3]))); }
     setRaterNotes("");
   };
 
@@ -1090,7 +1090,14 @@ export default function AdminPage() {
                           <div className="space-y-2">
                             {RATER_DIMS.map(d => {
                               const data = correlations[k]?.[d.key];
-                              if (!data) return null;
+                              if (!data || data.insufficient || data.r == null) {
+                                return (
+                                  <div key={d.key} className="flex justify-between text-xs">
+                                    <span style={{ color:"var(--text2)" }}>{d.label}</span>
+                                    <span style={{ color:"var(--text3)" }}>— data kurang</span>
+                                  </div>
+                                );
+                              }
                               const col = data.r>0.7?"var(--accent)":data.r>0.5?"var(--warn)":"var(--danger)";
                               return (
                                 <div key={d.key} className="flex justify-between text-xs">

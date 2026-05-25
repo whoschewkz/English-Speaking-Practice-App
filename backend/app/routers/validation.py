@@ -180,22 +180,24 @@ def calculate_correlations(
             return None
         return round(float(r), 3), round(float(p), 4)
 
-    # Calculate Pearson correlations per dimension
+    # Calculate Pearson correlations per dimension — selalu sertakan semua dimensi di response
     for d in dimensions:
         n = len(ai_scores[d])
         if n < 3:
+            # Data tidak cukup: tetap sertakan dengan flag agar frontend bisa tampilkan info
+            entry = {"r": None, "n": n, "insufficient": True}
+            result["ai_vs_rater1"][d]      = entry
+            result["ai_vs_rater2"][d]      = entry
+            result["rater1_vs_rater2"][d]  = entry
             continue
 
         res_ai_r1 = safe_pearson(ai_scores[d], r1_scores[d])
         res_ai_r2 = safe_pearson(ai_scores[d], r2_scores[d])
         res_r1_r2 = safe_pearson(r1_scores[d], r2_scores[d])
 
-        if res_ai_r1:
-            result["ai_vs_rater1"][d] = {"r": res_ai_r1[0], "p_value": res_ai_r1[1], "n": n}
-        if res_ai_r2:
-            result["ai_vs_rater2"][d] = {"r": res_ai_r2[0], "p_value": res_ai_r2[1], "n": n}
-        if res_r1_r2:
-            result["rater1_vs_rater2"][d] = {"r": res_r1_r2[0], "p_value": res_r1_r2[1], "n": n}
+        result["ai_vs_rater1"][d]     = {"r": res_ai_r1[0], "p_value": res_ai_r1[1], "n": n} if res_ai_r1 else {"r": None, "n": n, "insufficient": True}
+        result["ai_vs_rater2"][d]     = {"r": res_ai_r2[0], "p_value": res_ai_r2[1], "n": n} if res_ai_r2 else {"r": None, "n": n, "insufficient": True}
+        result["rater1_vs_rater2"][d] = {"r": res_r1_r2[0], "p_value": res_r1_r2[1], "n": n} if res_r1_r2 else {"r": None, "n": n, "insufficient": True}
 
     # Calculate overall correlations (pool all dimensions)
     all_ai = [v for vals in ai_scores.values() for v in vals]

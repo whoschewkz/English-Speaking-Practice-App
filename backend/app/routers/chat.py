@@ -245,13 +245,30 @@ def _synth_piper(text: str, voice_name: str) -> bytes:
     return buf.read()
 
 
+def _save_ai_audio(audio_bytes: bytes, ext: str) -> str | None:
+    """Simpan audio TTS ke disk, return filename atau None jika gagal."""
+    import uuid as _uuid_mod
+    from datetime import datetime as _dt
+    ts       = _dt.utcnow().strftime("%Y%m%d_%H%M%S")
+    filename = f"ai_{ts}_{_uuid_mod.uuid4().hex[:8]}.{ext}"
+    try:
+        (UPLOADS_DIR / filename).write_bytes(audio_bytes)
+        return filename
+    except Exception as e:
+        print(f"[TTS] Save audio failed: {e}", flush=True)
+        return None
+
+
 @router.post("/tts")
 async def text_to_speech(
     text:       str = Body(...),
     scenarioId: str = Body("agent"),
     current_user: dict = Depends(require_user),
 ):
-    """Piper binary TTS (lokal) dengan fallback ke edge-tts."""
+    """Piper binary TTS (lokal) dengan fallback ke edge-tts.
+    Menyimpan audio ke disk dan mengembalikan nama file via header X-Audio-Path
+    agar frontend dapat melacak urutan percakapan user+AI untuk rater.
+    """
     voice_name = _SCENARIO_VOICE.get(scenarioId, "en_US-ryan-medium")
     onnx_path  = _PIPER_VOICES_DIR / f"{voice_name}.onnx"
 
@@ -260,7 +277,9 @@ async def text_to_speech(
         try:
             loop        = _asyncio.get_event_loop()
             audio_bytes = await loop.run_in_executor(None, _synth_piper, text[:3000], voice_name)
-            return Response(content=audio_bytes, media_type="audio/wav")
+            filename    = _save_ai_audio(audio_bytes, "wav")
+            headers     = {"X-Audio-Path": filename} if filename else {}
+            return Response(content=audio_bytes, media_type="audio/wav", headers=headers)
         except Exception as e:
             print(f"[TTS] Piper error: {e} — falling back to edge-tts", flush=True)
 
@@ -274,7 +293,9 @@ async def text_to_speech(
             if chunk["type"] == "audio":
                 audio_bytes += chunk["data"]
         if audio_bytes:
-            return Response(content=audio_bytes, media_type="audio/mpeg")
+            filename = _save_ai_audio(audio_bytes, "mp3")
+            headers  = {"X-Audio-Path": filename} if filename else {}
+            return Response(content=audio_bytes, media_type="audio/mpeg", headers=headers)
         raise RuntimeError("empty audio")
     except Exception as e:
         print(f"[TTS] edge-tts error: {e}", flush=True)

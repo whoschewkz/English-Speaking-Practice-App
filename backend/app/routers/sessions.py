@@ -1,3 +1,4 @@
+import json
 import wave
 import uuid as _uuid
 from math import fsum
@@ -93,8 +94,10 @@ def save_session(
         score_overall=overall,
         comment=(payload.comment or ""),
         duration_min=float(payload.duration_min or 0.0),
-        # Gabungkan semua turn audio menjadi satu file; fallback ke audio_path lama
+        # Gabungkan semua user turn audio menjadi satu file; fallback ke audio_path lama
         audio_path=_concat_wav(payload.audio_paths) if payload.audio_paths else payload.audio_path,
+        # Simpan urutan lengkap percakapan (user + AI) untuk diputar rater per turn
+        full_audio_json=json.dumps(payload.conversation_turns) if payload.conversation_turns else None,
     )
     db.add(row); db.commit(); db.refresh(row)
 
