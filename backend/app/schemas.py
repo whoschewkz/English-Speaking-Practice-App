@@ -122,11 +122,11 @@ class UserOut(BaseModel):
 
 class SaveSessionIn(BaseModel):
     scenario:           str
-    score_range:        float
-    score_accuracy:     float
-    score_fluency:      float
-    score_coherence:    float
-    score_phonology:    float
+    score_range:        float = Field(..., ge=1, le=5)
+    score_accuracy:     float = Field(..., ge=1, le=5)
+    score_fluency:      float = Field(..., ge=1, le=5)
+    score_coherence:    float = Field(..., ge=1, le=5)
+    score_phonology:    float = Field(..., ge=1, le=5)
     comment:            Optional[str]        = None
     duration_min:       Optional[float]      = 0.0
     audio_path:         Optional[str]        = None   # backward compat (single)

@@ -125,16 +125,18 @@ async def chat(
                 "Respond in English only."
             ),
         }
-        msgs = [m.dict() if hasattr(m, "dict") else m for m in req.messages]
+        # Strip any client-supplied system messages — server system_prompt is always authoritative
+        msgs = [
+            m.dict() if hasattr(m, "dict") else m
+            for m in req.messages
+            if (m.role if hasattr(m, "role") else m.get("role")) != "system"
+        ]
 
         # Untuk agent mode: inject level/focus context ke system prompt
         if req.agentSystemCtx:
             system_prompt["content"] += f"\n\nADAPTIVE CONTEXT:\n{req.agentSystemCtx}"
 
-        final_messages = (
-            msgs if (msgs and isinstance(msgs[0], dict) and msgs[0].get("role") == "system")
-            else [system_prompt, *msgs]
-        ) if msgs else [system_prompt]
+        final_messages = [system_prompt, *msgs] if msgs else [system_prompt]
 
         body_req = {"model": "llama-3.3-70b-versatile", "messages": final_messages, "temperature": 0.3}
         async with httpx.AsyncClient(timeout=60) as client:
