@@ -6,7 +6,7 @@ from math import fsum
 from sqlalchemy import select as sa_select, asc
 from sqlalchemy.orm import Session
 
-from .config import GROQ_API_KEY
+from .config import GROQ_API_KEY, GROQ_API_KEYS
 from .models import ProfileORM
 
 
@@ -20,23 +20,32 @@ async def groq_post_with_retry(
     **kwargs,
 ):
     """
-    POST ke Groq API dengan retry otomatis saat kena rate limit (429).
-    Pakai exponential backoff: 2s, 4s, 8s — user tidak sadar ada delay.
+    POST ke Groq API dengan key rotation otomatis saat kena rate limit (429).
+    Coba setiap key dalam pool sebelum sleep, lalu retry dengan backoff.
     """
-    MAX_WAIT = 30.0   # cap agar request tidak hang melebihi nginx/Cloudflare timeout
+    MAX_WAIT = 30.0
+    keys = GROQ_API_KEYS or [GROQ_API_KEY]
     delay = 2.0
+
     for attempt in range(max_retries + 1):
-        r = await client.post(url, **kwargs)
-        if r.status_code != 429:
-            return r
+        # Coba semua key yang tersedia sebelum menyerah di attempt ini
+        for i, key in enumerate(keys):
+            kw = dict(kwargs)
+            hdrs = dict(kw.pop("headers", {}) or {})
+            hdrs["Authorization"] = f"Bearer {key}"
+            r = await client.post(url, headers=hdrs, **kw)
+            if r.status_code != 429:
+                return r
+            print(f"[GROQ] Key {i+1}/{len(keys)} rate limited", flush=True)
+
         if attempt == max_retries:
             break
-        retry_after = float(r.headers.get("retry-after", delay))
-        wait = min(max(retry_after, delay), MAX_WAIT)
-        print(f"[GROQ] Rate limit hit, retry {attempt+1}/{max_retries} in {wait:.1f}s", flush=True)
+        wait = min(delay, MAX_WAIT)
+        print(f"[GROQ] All keys rate limited, waiting {wait:.1f}s (attempt {attempt+1}/{max_retries})", flush=True)
         await asyncio.sleep(wait)
         delay *= 2
-    return r   # kembalikan response 429 terakhir kalau semua retry habis
+
+    return r
 
 
 # ===== Profile =====

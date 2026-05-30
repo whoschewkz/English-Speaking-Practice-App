@@ -8,6 +8,12 @@ except Exception:
 
 API_PREFIX   = os.getenv("API_PREFIX", "/api")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+
+# Pool of Groq keys — rotated automatically on rate limit
+_groq_pool_raw = [
+    os.getenv(f"GROQ_API_KEY_{i}", "") for i in range(2, 6)
+]
+GROQ_API_KEYS: list[str] = [k for k in [GROQ_API_KEY] + _groq_pool_raw if k]
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
