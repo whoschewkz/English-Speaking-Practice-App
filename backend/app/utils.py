@@ -23,6 +23,7 @@ async def groq_post_with_retry(
     POST ke Groq API dengan retry otomatis saat kena rate limit (429).
     Pakai exponential backoff: 2s, 4s, 8s — user tidak sadar ada delay.
     """
+    MAX_WAIT = 30.0   # cap agar request tidak hang melebihi nginx/Cloudflare timeout
     delay = 2.0
     for attempt in range(max_retries + 1):
         r = await client.post(url, **kwargs)
@@ -31,10 +32,10 @@ async def groq_post_with_retry(
         if attempt == max_retries:
             break
         retry_after = float(r.headers.get("retry-after", delay))
-        wait = max(retry_after, delay)
+        wait = min(max(retry_after, delay), MAX_WAIT)
         print(f"[GROQ] Rate limit hit, retry {attempt+1}/{max_retries} in {wait:.1f}s", flush=True)
         await asyncio.sleep(wait)
-        delay *= 2   # exponential backoff
+        delay *= 2
     return r   # kembalikan response 429 terakhir kalau semua retry habis
 
 
