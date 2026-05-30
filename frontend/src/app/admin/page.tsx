@@ -45,7 +45,7 @@ const RATER_DIMS = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function cefrKey(s:number){ if(s>=4.5)return"C1+"; if(s>=3.5)return"B2"; if(s>=2.5)return"B1"; if(s>=1.5)return"A2"; return"A1"; }
+function cefrKey(s:number){ if(s>=5.0)return"C2"; if(s>=4.0)return"C1"; if(s>=3.0)return"B2"; if(s>=2.0)return"B1"; return"A2"; }
 function toP(s:number){ return Math.max(0,Math.min(100,((s-1)/4)*100)); }
 function scoreCol(s:number){ return s>=3.5?"var(--accent)":s>=2.5?"var(--warn)":"var(--danger)"; }
 

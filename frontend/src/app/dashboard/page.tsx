@@ -23,14 +23,14 @@ const TIPS: Record<string, string> = {
 };
 // Deskripsi 1 kalimat per level — memberi konteks emosional pada angka CEFR
 const CEFR_DESC: Record<string, string> = {
-  "C1+": "Setara kemampuan akademik dan profesional tinggi.",
+  "C1":  "Setara kemampuan akademik dan profesional tinggi.",
+  "C2":  "Sangat mahir, setara penutur asli.",
   "B2":  "Mampu berkomunikasi lancar dalam berbagai konteks.",
   "B1":  "Dapat mengatasi sebagian besar situasi sehari-hari.",
   "A2":  "Mampu berkomunikasi dalam situasi sederhana.",
-  "A1":  "Kemampuan dasar dalam komunikasi terbatas.",
 };
 function cefrKey(s: number) {
-  if (s >= 4.5) return "C1+"; if (s >= 3.5) return "B2"; if (s >= 2.5) return "B1"; if (s >= 1.5) return "A2"; return "A1";
+  if (s >= 5.0) return "C2"; if (s >= 4.0) return "C1"; if (s >= 3.0) return "B2"; if (s >= 2.0) return "B1"; return "A2";
 }
 function toP(s: number) { return Math.max(0, Math.min(100, ((s-1)/4)*100)); }
 function scoreCol(s: number) {
@@ -177,7 +177,7 @@ export default function DashboardPage() {
               {/* Level track */}
               <div className="mt-5">
                 <div className="flex justify-between text-xs mb-2" style={{ color:"var(--text3)" }}>
-                  {["A1","A2","B1","B2","C1+"].map(l=><span key={l}>{l}</span>)}
+                  {["A2","B1","B2","C1","C2"].map(l=><span key={l}>{l}</span>)}
                 </div>
                 <div className="h-2 rounded-full" style={{ background:"var(--border2)" }}>
                   <div className="h-full rounded-full transition-all duration-700"

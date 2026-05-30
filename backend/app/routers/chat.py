@@ -138,7 +138,16 @@ async def chat(
 
         final_messages = [system_prompt, *msgs] if msgs else [system_prompt]
 
-        body_req = {"model": "llama-3.3-70b-versatile", "messages": final_messages, "temperature": 0.3}
+        # Batasi history ke 14 pesan terakhir (7 turn) agar tidak kelebihan token
+        if len(final_messages) > 15:  # 1 system + 14 history
+            final_messages = [final_messages[0], *final_messages[-14:]]
+
+        body_req = {
+            "model":      "llama-3.3-70b-versatile",
+            "messages":   final_messages,
+            "temperature": 0.3,
+            "max_tokens": 150,   # 2-4 kalimat cukup ~80-120 token
+        }
         async with httpx.AsyncClient(timeout=60) as client:
             r = await groq_post_with_retry(client, url, headers=headers, json=body_req)
             if r.status_code != 200:
