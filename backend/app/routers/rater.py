@@ -84,7 +84,7 @@ def rater_save_assessment(
         existing.score_accuracy  = payload.score_accuracy
         existing.score_fluency   = payload.score_fluency
         existing.score_coherence = payload.score_coherence
-        existing.score_phonology = payload.score_phonology
+        existing.score_interaction = payload.score_interaction
         existing.notes           = payload.notes
         existing.rated_at        = datetime.utcnow()
         db.add(existing)
@@ -96,7 +96,7 @@ def rater_save_assessment(
             score_accuracy  = payload.score_accuracy,
             score_fluency   = payload.score_fluency,
             score_coherence = payload.score_coherence,
-            score_phonology = payload.score_phonology,
+            score_interaction = payload.score_interaction,
             notes           = payload.notes,
         ))
     db.commit()

@@ -126,7 +126,7 @@ class SaveSessionIn(BaseModel):
     score_accuracy:     float = Field(..., ge=1, le=5)
     score_fluency:      float = Field(..., ge=1, le=5)
     score_coherence:    float = Field(..., ge=1, le=5)
-    score_phonology:    float = Field(..., ge=1, le=5)
+    score_interaction:  float = Field(..., ge=1, le=5)
     comment:            Optional[str]        = None
     duration_min:       Optional[float]      = 0.0
     audio_path:         Optional[str]        = None   # backward compat (single)
@@ -182,7 +182,7 @@ class RaterAssessmentIn(BaseModel):
     score_accuracy:  Optional[float] = Field(None, ge=1, le=5)
     score_fluency:   Optional[float] = Field(None, ge=1, le=5)
     score_coherence: Optional[float] = Field(None, ge=1, le=5)
-    score_phonology: Optional[float] = Field(None, ge=1, le=5)
+    score_interaction: Optional[float] = Field(None, ge=1, le=5)
     notes:           Optional[str] = None
 
 

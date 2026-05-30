@@ -25,7 +25,7 @@ def get_profile(
             "accuracy":  round(prof.ma_accuracy, 2),
             "fluency":   round(prof.ma_fluency, 2),
             "coherence": round(prof.ma_coherence, 2),
-            "phonology": round(prof.ma_phonology, 2),
+            "interaction": round(prof.ma_interaction, 2),
             "overall":   round(prof.ma_overall, 2),
         },
     }

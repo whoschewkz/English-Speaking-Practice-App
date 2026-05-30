@@ -157,7 +157,7 @@ async def agent_plan(
             "accuracy":  prof.ma_accuracy,
             "fluency":   prof.ma_fluency,
             "coherence": prof.ma_coherence,
-            "phonology": prof.ma_phonology,
+            "interaction": prof.ma_interaction,
             "overall":   prof.ma_overall,
         },
     }

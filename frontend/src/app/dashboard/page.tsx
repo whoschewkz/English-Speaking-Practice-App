@@ -6,20 +6,20 @@ import { NavBar, Icon, useTheme } from "@/components/shared";
 
 type Profile = {
   level: number; target_cefr: string; sessions_count: number;
-  ma: { range: number; accuracy: number; fluency: number; coherence: number; phonology: number; overall: number };
+  ma: { range: number; accuracy: number; fluency: number; coherence: number; interaction: number; overall: number };
 };
 type Session = { id: number; scenario: string; score_overall: number; created_at: string };
 type Stats   = { total_minutes: number; total_hours: number };
 
 const DIM: Record<string, string> = {
-  range:"Kosakata", accuracy:"Tata Bahasa", fluency:"Kelancaran", coherence:"Koherensi", phonology:"Pelafalan",
+  range:"Kosakata", accuracy:"Tata Bahasa", fluency:"Kelancaran", coherence:"Koherensi", interaction:"Interaksi",
 };
 const TIPS: Record<string, string> = {
   range:     "Baca artikel bahasa Inggris setiap hari dan catat kosakata baru.",
   accuracy:  "Fokus latihan tense dan artikel. Minta AI koreksi setiap kalimatmu.",
   fluency:   "Latih berbicara tanpa berhenti. Gunakan filler alami seperti 'well', 'you see'.",
   coherence: "Struktur jawaban: point → reason → example. Gunakan 'first, then, finally'.",
-  phonology: "Dengarkan podcast native speaker dan tiru intonasi mereka.",
+  interaction: "Latih menjawab pertanyaan secara penuh dan tanyakan balik untuk menjaga alur percakapan.",
 };
 // Deskripsi 1 kalimat per level — memberi konteks emosional pada angka CEFR
 const CEFR_DESC: Record<string, string> = {
@@ -230,7 +230,7 @@ export default function DashboardPage() {
                 <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color:"var(--text3)" }}>Profil kemampuan</p>
                 {profile ? (
                   <div>
-                    {(["range","accuracy","fluency","coherence","phonology"] as const).map((d, idx) => {
+                    {(["range","accuracy","fluency","coherence","interaction"] as const).map((d, idx) => {
                       const v = profile.ma[d];
                       const col = scoreCol(v);
                       const isWeak = d === weakDim;

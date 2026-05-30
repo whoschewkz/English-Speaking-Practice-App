@@ -114,7 +114,7 @@ def _aggregate_by_date(sessions: list) -> list:
             "accuracy": round(sum(s.score_accuracy for s in day_sessions) / len(day_sessions), 2),
             "fluency": round(sum(s.score_fluency for s in day_sessions) / len(day_sessions), 2),
             "coherence": round(sum(s.score_coherence for s in day_sessions) / len(day_sessions), 2),
-            "phonology": round(sum(s.score_phonology for s in day_sessions) / len(day_sessions), 2),
+            "interaction": round(sum(s.score_interaction for s in day_sessions) / len(day_sessions), 2),
             "total_min": round(sum(s.duration_min or 0 for s in day_sessions), 1),
             "scenarios": [s.scenario for s in day_sessions],
         })
@@ -159,7 +159,7 @@ def admin_analytics(
                     "accuracy": round(s.score_accuracy, 2),
                     "fluency":  round(s.score_fluency, 2),
                     "coherence":round(s.score_coherence, 2),
-                    "phonology":round(s.score_phonology, 2),
+                    "interaction":round(s.score_interaction, 2),
                     "date":     s.created_at.strftime("%d/%m"),
                     "scenario": s.scenario,
                 }
@@ -182,7 +182,7 @@ def admin_analytics(
                 "accuracy":  round(prof.ma_accuracy, 2)  if prof else 3.0,
                 "fluency":   round(prof.ma_fluency, 2)   if prof else 3.0,
                 "coherence": round(prof.ma_coherence, 2) if prof else 3.0,
-                "phonology": round(prof.ma_phonology, 2) if prof else 3.0,
+                "interaction": round(prof.ma_interaction, 2) if prof else 3.0,
                 "overall":   round(prof.ma_overall, 2)   if prof else 3.0,
             },
             "score_trend": score_trend,

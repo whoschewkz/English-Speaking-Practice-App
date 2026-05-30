@@ -40,7 +40,7 @@ def list_sessions_for_rating(
                 "accuracy": a.score_accuracy,
                 "fluency": a.score_fluency,
                 "coherence": a.score_coherence,
-                "phonology": a.score_phonology,
+                "interaction": a.score_interaction,
             }
 
         result.append({
@@ -55,7 +55,7 @@ def list_sessions_for_rating(
                 "accuracy": round(s.score_accuracy, 2),
                 "fluency": round(s.score_fluency, 2),
                 "coherence": round(s.score_coherence, 2),
-                "phonology": round(s.score_phonology, 2),
+                "interaction": round(s.score_interaction, 2),
                 "overall": round(s.score_overall, 2),
             },
             "rater_scores": rater_scores,
@@ -94,7 +94,7 @@ def save_assessment(
         existing.score_accuracy = payload.score_accuracy
         existing.score_fluency = payload.score_fluency
         existing.score_coherence = payload.score_coherence
-        existing.score_phonology = payload.score_phonology
+        existing.score_interaction = payload.score_interaction
         existing.notes = payload.notes
         existing.rated_at = datetime.utcnow()
         db.add(existing)
@@ -107,7 +107,7 @@ def save_assessment(
             score_accuracy=payload.score_accuracy,
             score_fluency=payload.score_fluency,
             score_coherence=payload.score_coherence,
-            score_phonology=payload.score_phonology,
+            score_interaction=payload.score_interaction,
             notes=payload.notes,
         )
         db.add(assessment)
@@ -129,7 +129,7 @@ def calculate_correlations(
         .where(SessionRecordORM.audio_path.isnot(None))
     ).scalars().all()
 
-    dimensions = ["range", "accuracy", "fluency", "coherence", "phonology"]
+    dimensions = ["range", "accuracy", "fluency", "coherence", "interaction"]
     result = {
         "ai_vs_rater1": {},
         "ai_vs_rater2": {},

@@ -80,7 +80,7 @@ def save_session(
     user_id = int(current_user["sub"])
     overall = _clip1to5(fsum([
         payload.score_range, payload.score_accuracy, payload.score_fluency,
-        payload.score_coherence, payload.score_phonology
+        payload.score_coherence, payload.score_interaction
     ]) / 5.0)
 
     row = SessionRecordORM(
@@ -90,7 +90,7 @@ def save_session(
         score_accuracy=_clip1to5(payload.score_accuracy),
         score_fluency=_clip1to5(payload.score_fluency),
         score_coherence=_clip1to5(payload.score_coherence),
-        score_phonology=_clip1to5(payload.score_phonology),
+        score_interaction=_clip1to5(payload.score_interaction),
         score_overall=overall,
         comment=(payload.comment or ""),
         duration_min=float(payload.duration_min or 0.0),
@@ -107,7 +107,7 @@ def save_session(
     prof.ma_accuracy  = _ma_update(prof.ma_accuracy,  row.score_accuracy,  old_count)
     prof.ma_fluency   = _ma_update(prof.ma_fluency,   row.score_fluency,   old_count)
     prof.ma_coherence = _ma_update(prof.ma_coherence, row.score_coherence, old_count)
-    prof.ma_phonology = _ma_update(prof.ma_phonology, row.score_phonology, old_count)
+    prof.ma_interaction = _ma_update(prof.ma_interaction, row.score_interaction, old_count)
     prof.ma_overall   = _ma_update(prof.ma_overall,   row.score_overall,   old_count)
     prof.sessions_count = old_count + 1
     _adjust_level(prof)
@@ -122,7 +122,7 @@ def save_session(
                 "accuracy":  round(prof.ma_accuracy, 2),
                 "fluency":   round(prof.ma_fluency, 2),
                 "coherence": round(prof.ma_coherence, 2),
-                "phonology": round(prof.ma_phonology, 2),
+                "interaction": round(prof.ma_interaction, 2),
                 "overall":   round(prof.ma_overall, 2),
             },
             "sessions_count": prof.sessions_count,

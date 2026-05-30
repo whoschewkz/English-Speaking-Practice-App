@@ -89,10 +89,10 @@ def _normalize_scores_obj(obj: dict):
     a = _clip1to5(s.get("accuracy",  3.0))
     f = _clip1to5(s.get("fluency",   3.0))
     c = _clip1to5(s.get("coherence", 3.0))
-    p = _clip1to5(s.get("phonology", 3.0))
+    p = _clip1to5(s.get("interaction", 3.0))
     o = s.get("overall", None)
     o = _clip1to5(fsum([r, a, f, c, p]) / 5.0) if o is None else _clip1to5(o)
-    return {"scores": {"range": r, "accuracy": a, "fluency": f, "coherence": c, "phonology": p, "overall": o},
+    return {"scores": {"range": r, "accuracy": a, "fluency": f, "coherence": c, "interaction": p, "overall": o},
             "comment": (obj.get("comment") or "").strip()}
 
 
@@ -188,7 +188,7 @@ def _weak_focus_from_profile(p: ProfileORM) -> str:
         "accuracy":  p.ma_accuracy  or 3.0,
         "fluency":   p.ma_fluency   or 3.0,
         "coherence": p.ma_coherence or 3.0,
-        "phonology": p.ma_phonology or 3.0,
+        "interaction": p.ma_interaction or 3.0,
     }
     return min(buckets.items(), key=lambda x: x[1])[0]
 
@@ -199,7 +199,7 @@ def _suggest_scenario_for_focus(focus: str) -> str:
         "accuracy":  "Business Meeting",
         "fluency":   "Daily Conversation",
         "coherence": "Travel Situations",
-        "phonology": "Daily Conversation",
+        "interaction": "Daily Conversation",
     }.get(focus, "Daily Conversation")
 
 
@@ -217,7 +217,7 @@ def _make_prompt(focus: str, level: int) -> str:
         "accuracy":  "Gently correct grammatical errors and encourage precise sentence structures.",
         "fluency":   "Encourage continuous speech; prompt the learner to elaborate without long pauses.",
         "coherence": "Guide the learner to organize ideas with clear topic sentences and connectors.",
-        "phonology": "Pay attention to pronunciation; provide gentle corrections on word stress and intonation.",
+        "interaction": "Encourage the learner to respond directly to questions, elaborate answers, and ask follow-up questions to maintain natural conversation flow.",
     }
     return (
         f"Student level: {level_text}. Today's focus: {focus}.\n"
@@ -230,39 +230,39 @@ def _make_prompt(focus: str, level: int) -> str:
 # Opening messages yang natural dan sesuai level — DITAMPILKAN ke user sebagai pesan pertama AI
 _AGENT_OPENINGS: dict[int, dict[str, str]] = {
     1: {  # A1-A2: sangat sederhana
-        "range":     "Hi! Let's practice English today. Tell me — what do you do every day? Use simple words!",
-        "accuracy":  "Hello! Let's talk in English. Can you tell me your name and where you live?",
-        "fluency":   "Hi! Just speak freely — don't worry about mistakes. What do you usually do after school or work?",
-        "coherence": "Hello! Tell me about yesterday. What did you do? Step by step.",
-        "phonology": "Hi! Let's practice speaking clearly. Say this: 'I enjoy learning English.' Now tell me — what is your favorite food?",
+        "range":       "Hi! Let's practice English today. Tell me — what do you do every day? Use simple words!",
+        "accuracy":    "Hello! Let's talk in English. Can you tell me your name and where you live?",
+        "fluency":     "Hi! Just speak freely — don't worry about mistakes. What do you usually do after school or work?",
+        "coherence":   "Hello! Tell me about yesterday. What did you do? Step by step.",
+        "interaction": "Hi! Let's have a simple conversation. I'll ask you questions — try to answer fully. Ready? What do you like to do after school or work?",
     },
     2: {  # A2-B1: sederhana tapi berkembang
-        "range":     "Hello! Let's build your vocabulary today. Can you describe your typical week using as many different words as you can?",
-        "accuracy":  "Welcome! Let's practice speaking accurately. Tell me about your studies or work — use complete sentences.",
-        "fluency":   "Hi! Keep talking without stopping. What do you enjoy doing on weekends, and why?",
-        "coherence": "Hello! Let's organize our ideas. Can you explain what you did last week, step by step?",
-        "phonology": "Welcome! Focus on speaking clearly. Can you describe your hometown — its streets, people, and atmosphere?",
+        "range":       "Hello! Let's build your vocabulary today. Can you describe your typical week using as many different words as you can?",
+        "accuracy":    "Welcome! Let's practice speaking accurately. Tell me about your studies or work — use complete sentences.",
+        "fluency":     "Hi! Keep talking without stopping. What do you enjoy doing on weekends, and why?",
+        "coherence":   "Hello! Let's organize our ideas. Can you explain what you did last week, step by step?",
+        "interaction": "Hello! Let's practice keeping a conversation going. When I ask something, give a full answer and feel free to ask me back. What do you do on a typical day?",
     },
     3: {  # B1-B2: menengah
-        "range":     "Hello! Today we'll work on expanding your vocabulary range. Could you describe a memorable experience using varied, precise words?",
-        "accuracy":  "Welcome! Let's focus on grammatical accuracy. Can you explain your career goals or academic plans in detail?",
-        "fluency":   "Hi! Aim for smooth, continuous speech today. Tell me about a recent challenge you faced — keep talking!",
-        "coherence": "Hello! Let's practice structured ideas. What are the advantages and disadvantages of social media?",
-        "phonology": "Welcome! Let's work on accurate pronunciation. What is your opinion on how technology affects daily life?",
+        "range":       "Hello! Today we'll work on expanding your vocabulary range. Could you describe a memorable experience using varied, precise words?",
+        "accuracy":    "Welcome! Let's focus on grammatical accuracy. Can you explain your career goals or academic plans in detail?",
+        "fluency":     "Hi! Aim for smooth, continuous speech today. Tell me about a recent challenge you faced — keep talking!",
+        "coherence":   "Hello! Let's practice structured ideas. What are the advantages and disadvantages of social media?",
+        "interaction": "Hello! Today we focus on natural conversation flow — responding fully, building on ideas, and staying engaged. What's a topic you feel strongly about lately?",
     },
     4: {  # B2: lanjutan
-        "range":     "Welcome! This session targets sophisticated vocabulary. How has your field of study or work changed in recent years?",
-        "accuracy":  "Hello! Let's use complex grammatical structures. Could you analyze the causes and effects of a social issue you care about?",
-        "fluency":   "Hi! Let's aim for spontaneous, natural speech. What are your views on balancing tradition with modern lifestyles?",
-        "coherence": "Welcome! Let's practice well-argued discourse. Present a case for or against remote work in the modern economy.",
-        "phonology": "Hello! Let's refine your pronunciation. Tell me about a cross-cultural experience that changed your perspective.",
+        "range":       "Welcome! This session targets sophisticated vocabulary. How has your field of study or work changed in recent years?",
+        "accuracy":    "Hello! Let's use complex grammatical structures. Could you analyze the causes and effects of a social issue you care about?",
+        "fluency":     "Hi! Let's aim for spontaneous, natural speech. What are your views on balancing tradition with modern lifestyles?",
+        "coherence":   "Welcome! Let's practice well-argued discourse. Present a case for or against remote work in the modern economy.",
+        "interaction": "Welcome! Let's practice active interaction — respond to my points, ask follow-ups, and steer the conversation. How do you think technology is reshaping the way people communicate?",
     },
     5: {  # C1: mahir
-        "range":     "Welcome! This advanced session focuses on lexical precision. How are emerging technologies reshaping professional communication?",
-        "accuracy":  "Hello! Let's engage with complex language. What are the ethical implications of artificial intelligence in decision-making?",
-        "fluency":   "Hi! Aim for natural, C1-level fluency. Share your analysis of globalization's impact on cultural identity.",
-        "coherence": "Welcome! Let's construct sophisticated arguments. What is your nuanced perspective on the future of higher education?",
-        "phonology": "Hello! Let's polish your pronunciation. Discuss sociolinguistic factors that influence how people acquire a second language.",
+        "range":       "Welcome! This advanced session focuses on lexical precision. How are emerging technologies reshaping professional communication?",
+        "accuracy":    "Hello! Let's engage with complex language. What are the ethical implications of artificial intelligence in decision-making?",
+        "fluency":     "Hi! Aim for natural, C1-level fluency. Share your analysis of globalization's impact on cultural identity.",
+        "coherence":   "Welcome! Let's construct sophisticated arguments. What is your nuanced perspective on the future of higher education?",
+        "interaction": "Welcome! This session focuses on sophisticated interaction — managing discourse, responding to nuance, redirecting conversation. Discuss how interdisciplinary collaboration shapes innovation in your field.",
     },
 }
 
@@ -270,7 +270,7 @@ _AGENT_OPENINGS: dict[int, dict[str, str]] = {
 def _make_agent_opening(focus: str, level: int, scenario: str) -> str:
     """Pesan pembuka percakapan yang natural, adaptif sesuai level dan fokus."""
     level_clamped = max(1, min(5, level))
-    focus_key = focus if focus in ("range", "accuracy", "fluency", "coherence", "phonology") else "fluency"
+    focus_key = focus if focus in ("range", "accuracy", "fluency", "coherence", "interaction") else "fluency"
     return _AGENT_OPENINGS.get(level_clamped, _AGENT_OPENINGS[3]).get(
         focus_key,
         f"Welcome to {scenario}! Let's start practicing. What topic would you like to explore today?"

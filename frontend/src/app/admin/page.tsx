@@ -14,14 +14,14 @@ type UserAnalytics = {
   user_id: number; username: string; full_name: string; is_active: boolean;
   last_login: string | null; sessions_count: number; total_min: number;
   level: number; target_cefr: string;
-  ma: { range:number; accuracy:number; fluency:number; coherence:number; phonology:number; overall:number };
-  score_trend: { session:number; overall:number; range:number; accuracy:number; fluency:number; coherence:number; phonology:number; date:string; scenario:string }[];
+  ma: { range:number; accuracy:number; fluency:number; coherence:number; interaction:number; overall:number };
+  score_trend: { session:number; overall:number; range:number; accuracy:number; fluency:number; coherence:number; interaction:number; date:string; scenario:string }[];
 };
 type Scenario = { id:number; title:string; description:string|null };
 type User     = { id:number; username:string; email:string; full_name:string|null; role:string; is_active:boolean; created_at:string; last_login_at:string|null };
 type Session  = { id:number; scenario:string; audio_path:string|null; duration_min:number; created_at:string; ai_scores:Record<string,number>; rater_scores:Record<number,Record<string,number>>; rating_status:{rater_1_done:boolean;rater_2_done:boolean;both_done:boolean} };
 type Tab      = "analytics" | "users" | "scenarios" | "rater";
-type Dim      = "overall"|"range"|"accuracy"|"fluency"|"coherence"|"phonology";
+type Dim      = "overall"|"range"|"accuracy"|"fluency"|"coherence"|"interaction";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const USER_COLORS = ["#00c896","#818cf8","#f472b6","#fbbf24","#60a5fa","#34d399","#f87171","#a78bfa","#fb923c","#38bdf8"];
@@ -31,17 +31,17 @@ const DIM_OPTS: { key: Dim; label: string }[] = [
   { key:"accuracy",  label:"Tata Bahasa" },
   { key:"fluency",   label:"Kelancaran" },
   { key:"coherence", label:"Koherensi" },
-  { key:"phonology", label:"Pelafalan" },
+  { key:"interaction", label:"Interaksi" },
 ];
 const DIM_ID: Record<string,string> = {
-  range:"Kosakata", accuracy:"Tata Bahasa", fluency:"Kelancaran", coherence:"Koherensi", phonology:"Pelafalan",
+  range:"Kosakata", accuracy:"Tata Bahasa", fluency:"Kelancaran", coherence:"Koherensi", interaction:"Interaksi",
 };
 const RATER_DIMS = [
   { key:"range",     label:"Kosakata" },
   { key:"accuracy",  label:"Tata Bahasa" },
   { key:"fluency",   label:"Kelancaran" },
   { key:"coherence", label:"Koherensi" },
-  { key:"phonology", label:"Pelafalan" },
+  { key:"interaction", label:"Interaksi" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -200,7 +200,7 @@ export default function AdminPage() {
           score_accuracy:raterScores.accuracy || null,
           score_fluency: raterScores.fluency  || null,
           score_coherence:raterScores.coherence||null,
-          score_phonology:raterScores.phonology||null,
+          score_interaction:raterScores.interaction||null,
           notes: raterNotes || null,
         }),
       });
@@ -218,7 +218,7 @@ export default function AdminPage() {
     {dim:"Tata Bahasa",value:selected.ma.accuracy},
     {dim:"Kelancaran", value:selected.ma.fluency},
     {dim:"Koherensi",  value:selected.ma.coherence},
-    {dim:"Pelafalan",  value:selected.ma.phonology},
+    {dim:"Interaksi",  value:selected.ma.interaction},
   ] : [], [selected]);
 
   const setRole = async (u:User, nr:string) => {
@@ -582,7 +582,7 @@ export default function AdminPage() {
                           Skor per dimensi
                         </p>
                         <div className="space-y-3">
-                          {(["range","accuracy","fluency","coherence","phonology"] as const).map(d => {
+                          {(["range","accuracy","fluency","coherence","interaction"] as const).map(d => {
                             const val = selected.ma[d];
                             const col = scoreCol(val);
                             return (
@@ -1020,7 +1020,7 @@ export default function AdminPage() {
                     {[
                       { n:"01", t:"Pilih sesi",           d:"Klik sesi dari daftar yang memiliki rekaman audio" },
                       { n:"02", t:"Dengarkan rekaman",    d:"Nilai tanpa melihat skor AI terlebih dahulu" },
-                      { n:"03", t:"Beri skor per dimensi",d:"Range · Accuracy · Fluency · Coherence · Phonology" },
+                      { n:"03", t:"Beri skor per dimensi",d:"Range · Accuracy · Fluency · Coherence · Interaction" },
                     ].map(({ n, t, d }) => (
                       <div key={n} className="flex items-start gap-4">
                         <span className="text-[11px] font-black tabular-nums pt-0.5 flex-shrink-0"

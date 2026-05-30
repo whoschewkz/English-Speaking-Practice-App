@@ -61,14 +61,14 @@ COHERENCE (Koherensi):
   2 = Ide sederhana dalam urutan cukup jelas dan linear.
   1 = Kata/frasa dihubungkan dengan konektor sederhana (and, but, because).
 
-PHONOLOGY (Fonologi/Pelafalan):
-  5 = Kontrol penuh fitur fonologis (stress, rhythm, intonation), pesan tersampaikan sangat jelas.
-  4 = Kontrol cukup, keterpahaman terjaga meskipun ada sedikit aksen.
-  3 = Intonasi dan pengucapan umumnya jelas meskipun dipengaruhi aksen bahasa lain.
-  2 = Umumnya dapat dipahami meskipun aksen bahasa pertama masih terlihat jelas.
-  1 = Cukup jelas dipahami meskipun kadang perlu pengulangan.
+INTERACTION (Komunikasi Interaktif):
+  5 = Memulai, mempertahankan, dan mengakhiri percakapan secara alami; giliran bicara mengalir; merespons semua nuansa.
+  4 = Berpartisipasi aktif; menangkap isyarat; memperbaiki hambatan secara efektif; elaborasi tanpa diminta.
+  3 = Menjaga percakapan tetap berjalan; menangani pertukaran sederhana dengan mudah; kadang perlu dorongan.
+  2 = Berkomunikasi dalam pertukaran sederhana yang dapat diprediksi; bergantung pada dukungan lawan bicara.
+  1 = Interaksi sangat terbatas; bergantung pada format tanya-jawab; elaborasi minimal.
 
-SKOR TOTAL = (Range + Accuracy + Fluency + Coherence + Phonology) / 5
+SKOR TOTAL = (Range + Accuracy + Fluency + Coherence + Interaction) / 5
 
 PEMETAAN KE CEFR:
   Skor 5.0       → C2
@@ -101,7 +101,7 @@ Return ONLY valid JSON, no extra text:
     "accuracy": <integer 1-5>,
     "fluency": <integer 1-5>,
     "coherence": <integer 1-5>,
-    "phonology": <integer 1-5>,
+    "interaction": <integer 1-5>,
     "overall": <float, average of above>
   }},
   "descriptors": {{
@@ -109,7 +109,7 @@ Return ONLY valid JSON, no extra text:
     "accuracy": "<brief evidence from transcript>",
     "fluency": "<brief evidence from transcript>",
     "coherence": "<brief evidence from transcript>",
-    "phonology": "<brief evidence from transcript>"
+    "interaction": "<brief evidence from transcript>"
   }},
   "comment": "<2-3 sentences overall assessment>",
   "standards": {{"rubric": "CEFR-aligned 1-5", "model": "analytic compensatory"}}
@@ -126,13 +126,13 @@ Return ONLY valid JSON, no extra text:
 {CEFR_RUBRIC}
 
 EVALUATION PROCEDURE — follow this exact sequence:
-For EACH dimension (Range, Accuracy, Fluency, Coherence, Phonology):
+For EACH dimension (Range, Accuracy, Fluency, Coherence, Interaction):
   Step 1: Quote 1-2 specific examples from the USER's utterances as evidence.
   Step 2: Compare those examples against the rubric descriptors above.
   Step 3: Assign an integer score (1-5).
 
 After scoring all 5 dimensions:
-  Step 4: Calculate overall = (range + accuracy + fluency + coherence + phonology) / 5
+  Step 4: Calculate overall = (range + accuracy + fluency + coherence + interaction) / 5
   Step 5: Cross-check — if any score seems inconsistent with the evidence, revise it.
 
 Return ONLY valid JSON:
@@ -142,14 +142,14 @@ Return ONLY valid JSON:
     "accuracy":  "<evidence + comparison to rubric>",
     "fluency":   "<evidence + comparison to rubric>",
     "coherence": "<evidence + comparison to rubric>",
-    "phonology": "<evidence + comparison to rubric>"
+    "interaction": "<evidence + comparison to rubric>"
   }},
   "scores": {{
     "range": <integer 1-5>,
     "accuracy": <integer 1-5>,
     "fluency": <integer 1-5>,
     "coherence": <integer 1-5>,
-    "phonology": <integer 1-5>,
+    "interaction": <integer 1-5>,
     "overall": <float>
   }},
   "descriptors": {{
@@ -157,7 +157,7 @@ Return ONLY valid JSON:
     "accuracy": "<1-2 sentence rubric-anchored descriptor>",
     "fluency": "<1-2 sentence rubric-anchored descriptor>",
     "coherence": "<1-2 sentence rubric-anchored descriptor>",
-    "phonology": "<1-2 sentence rubric-anchored descriptor>"
+    "interaction": "<1-2 sentence rubric-anchored descriptor>"
   }},
   "comment": "<2-3 sentences: overall impression + 2 specific action items for improvement>",
   "standards": {{"rubric": "CEFR-aligned 1-5", "model": "analytic compensatory", "method": "chain-of-thought"}}
@@ -178,17 +178,17 @@ ANCHOR EXAMPLES (calibration reference — use these to calibrate your scoring):
 Example A — Score 2 (B1 level):
   Utterance: "I am... uh... working in the, uh, company. It is good place. I like my job because... because the people are nice."
   Range=2 (limited vocabulary, familiar topics only), Accuracy=2 (basic errors), Fluency=2 (frequent hesitations),
-  Coherence=2 (simple linear connection), Phonology=2 (understandable with L1 accent)
+  Coherence=2 (simple linear connection), Interaction=1 (minimal elaboration, relies on Q&A)
 
 Example B — Score 3 (B2 level):
   Utterance: "I've been working in marketing for about three years now. The role involves coordinating campaigns and analyzing customer data, which I find quite challenging but rewarding."
   Range=3 (adequate for professional topic), Accuracy=3 (mostly accurate), Fluency=3 (stable tempo),
-  Coherence=3 (logical flow with some connectors), Phonology=3 (clear with minor accent influence)
+  Coherence=3 (logical flow with some connectors), Interaction=3 (responds adequately, some elaboration)
 
 Example C — Score 4 (C1 level):
   Utterance: "The most compelling aspect of this position is undoubtedly the opportunity to work cross-functionally. I've consistently found that collaboration between departments yields more innovative outcomes than siloed approaches."
   Range=4 (varied vocabulary, academic/professional), Accuracy=4 (high accuracy, self-corrects), Fluency=4 (spontaneous),
-  Coherence=4 (well-structured, appropriate connectors), Phonology=4 (clear, minor accent)
+  Coherence=4 (well-structured, appropriate connectors), Interaction=4 (engages actively, elaborates well)
 
 EVALUATION STEPS:
 1. Read ALL user utterances carefully.
@@ -209,7 +209,7 @@ Return ONLY valid JSON:
     "accuracy": <integer 1-5>,
     "fluency": <integer 1-5>,
     "coherence": <integer 1-5>,
-    "phonology": <integer 1-5>,
+    "interaction": <integer 1-5>,
     "overall": <float>
   }},
   "descriptors": {{
@@ -217,14 +217,14 @@ Return ONLY valid JSON:
     "accuracy": "<rubric-anchored, cite specific evidence>",
     "fluency": "<rubric-anchored, cite specific evidence>",
     "coherence": "<rubric-anchored, cite specific evidence>",
-    "phonology": "<rubric-anchored, cite specific evidence>"
+    "interaction": "<rubric-anchored, cite specific evidence>"
   }},
   "self_check": {{
     "range_consistent":     <true/false>,
     "accuracy_consistent":  <true/false>,
     "fluency_consistent":   <true/false>,
     "coherence_consistent": <true/false>,
-    "phonology_consistent": <true/false>,
+    "interaction_consistent": <true/false>,
     "revisions_made": "<describe any score revisions, or 'none'>"
   }},
   "comment": "<2-3 sentences: CEFR level estimate, strengths, specific improvement areas>",
@@ -328,7 +328,7 @@ async def run_benchmark():
 
                 # Pretty print
                 print(f"✅ overall={overall:.2f}")
-                for dim in ["range","accuracy","fluency","coherence","phonology"]:
+                for dim in ["range","accuracy","fluency","coherence","interaction"]:
                     print(f"       {dim:12s}: {scores.get(dim,'?')}")
 
                 results["variants"][variant_key]["transcripts"][t_key] = {
@@ -346,7 +346,7 @@ async def run_benchmark():
 
         # Hitung statistik konsistensi (variance antar transcript)
         if len(all_scores) >= 2:
-            dims = ["range","accuracy","fluency","coherence","phonology"]
+            dims = ["range","accuracy","fluency","coherence","interaction"]
             variance_per_dim = {}
             for d in dims:
                 vals = [s.get(d, 0) for s in all_scores if isinstance(s.get(d), (int, float))]

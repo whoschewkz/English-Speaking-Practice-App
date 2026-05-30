@@ -21,7 +21,7 @@ const DIMS = [
   { key: "accuracy",  label: "Tata Bahasa" },
   { key: "fluency",   label: "Kelancaran" },
   { key: "coherence", label: "Koherensi" },
-  { key: "phonology", label: "Pelafalan" },
+  { key: "interaction", label: "Interaksi" },
 ];
 
 type RubricLevel = { score: number; label: string; color: string; text: string };
@@ -58,7 +58,7 @@ const RUBRIC: Record<string, { desc: string; levels: RubricLevel[] }> = {
       { score: 5, label: "Sangat Baik", color: "var(--accent)", text: "Gagasan terstruktur dengan baik; menggunakan discourse markers (firstly, however, in conclusion) secara tepat." },
     ],
   },
-  phonology: {
+  interaction: {
     desc: "Kejelasan pengucapan, ketepatan tekanan kata, dan intonasi.",
     levels: [
       { score: 1, label: "Lemah",       color: "var(--danger)", text: "Pengucapan sering tidak jelas; tekanan kata dan intonasi sangat tidak natural sehingga sulit dipahami." },
@@ -137,7 +137,7 @@ export default function RaterPage() {
           score_accuracy:  scores.accuracy,
           score_fluency:   scores.fluency,
           score_coherence: scores.coherence,
-          score_phonology: scores.phonology,
+          score_interaction: scores.interaction,
           notes:           notes || null,
         }),
       });

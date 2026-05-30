@@ -7,9 +7,9 @@ import { useTheme, Icon } from "@/components/shared";
 
 type Role = "system"|"user"|"assistant";
 type Msg  = { role:Role; content:string };
-type ScoreBlock = { range:number; accuracy:number; fluency:number; coherence:number; phonology:number; overall:number };
+type ScoreBlock = { range:number; accuracy:number; fluency:number; coherence:number; interaction:number; overall:number };
 type Scores = ScoreBlock & { comment:string };
-type Descriptors = Partial<{ range:string; accuracy:string; fluency:string; coherence:string; phonology:string }>;
+type Descriptors = Partial<{ range:string; accuracy:string; fluency:string; coherence:string; interaction:string }>;
 type ObjMetrics  = Partial<{ total_words:number; unique_words:number; type_token_ratio:number; filler_per_100w:number; speech_rate_wpm:number|null; avg_sentence_len:number }>;
 type ReflectOut  = { summary:string; error_patterns:{tag:string;description:string}[]; vocab_targets:{topic:string;items:string[]}[]; objectives_next:string[] };
 type PlanOut     = { scenario:string; level:number; objectives:string[]; rubric:string[]; starter_turns:string[]; target_time_min:number };
@@ -36,14 +36,14 @@ const mapOpen  = (id:string) =>
   id==="4"?"You're at the airport check-in. May I see your passport, please?":
   "Hi! Let's begin. What would you like to practice today?";
 
-const DIM:Record<string,string> = { range:"Kosakata", accuracy:"Tata Bahasa", fluency:"Kelancaran", coherence:"Koherensi", phonology:"Pelafalan" };
+const DIM:Record<string,string> = { range:"Kosakata", accuracy:"Tata Bahasa", fluency:"Kelancaran", coherence:"Koherensi", interaction:"Interaksi" };
 
 const DIM_TOOLTIP:Record<string,string> = {
   range:     "Keragaman & ketepatan kosakata yang digunakan",
   accuracy:  "Ketepatan struktur dan tata bahasa",
   fluency:   "Kelancaran bicara tanpa jeda atau filler berlebihan",
   coherence: "Kemampuan menyusun dan menghubungkan ide secara logis",
-  phonology: "Kejelasan pengucapan, tekanan kata, dan intonasi",
+  interaction: "Kemampuan merespons, menjaga alur percakapan, dan elaborasi ide",
   overall:   "Rata-rata dari kelima dimensi di atas",
 };
 
@@ -379,8 +379,8 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
         const s=fbJson.scores as ScoreBlock;
         const scored:Scores={
           range:clip(s.range), accuracy:clip(s.accuracy), fluency:clip(s.fluency),
-          coherence:clip(s.coherence), phonology:clip(s.phonology),
-          overall:s.overall!==undefined?clip(s.overall):clip((clip(s.range)+clip(s.accuracy)+clip(s.fluency)+clip(s.coherence)+clip(s.phonology))/5),
+          coherence:clip(s.coherence), interaction:clip(s.interaction),
+          overall:s.overall!==undefined?clip(s.overall):clip((clip(s.range)+clip(s.accuracy)+clip(s.fluency)+clip(s.coherence)+clip(s.interaction))/5),
           comment:fbJson.comment||"",
         };
         setFeedback(scored);
@@ -392,7 +392,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
             scenario:isAgent?agentTitle||"AI Plan":mapTitle(id),
             score_range:clip(s.range), score_accuracy:clip(s.accuracy),
             score_fluency:clip(s.fluency), score_coherence:clip(s.coherence),
-            score_phonology:clip(s.phonology), comment:fbJson.comment||"", duration_min:dur,
+            score_interaction:clip(s.interaction), comment:fbJson.comment||"", duration_min:dur,
             audio_paths:audioPaths,            // user-only concat (fallback lama)
             conversation_turns:conversationTurns, // urutan lengkap user+AI untuk rater
           }),
@@ -523,7 +523,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
               <div className="p-7">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div className="space-y-4">
-                    {(["range","accuracy","fluency","coherence","phonology"] as const).map(d=>(
+                    {(["range","accuracy","fluency","coherence","interaction"] as const).map(d=>(
                       <ScoreBar key={d} label={DIM[d]} value={feedback[d]} dimKey={d} />
                     ))}
                     <div className="pt-4 border-t" style={{ borderColor:"var(--border)" }}>
