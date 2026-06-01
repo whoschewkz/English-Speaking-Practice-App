@@ -138,9 +138,10 @@ def calculate_correlations(
         "timestamp": datetime.utcnow().isoformat(),
     }
 
-    ai_scores = {d: [] for d in dimensions}
-    r1_scores = {d: [] for d in dimensions}
-    r2_scores = {d: [] for d in dimensions}
+    ai_scores  = {d: [] for d in dimensions}
+    r1_scores  = {d: [] for d in dimensions}
+    r2_scores  = {d: [] for d in dimensions}
+    avg_scores = {d: [] for d in dimensions}  # rata-rata kedua rater sebagai ground truth
 
     for s in sessions:
         assessments = db.execute(
@@ -165,56 +166,61 @@ def calculate_correlations(
                     ai_scores[d].append(ai_val)
                     r1_scores[d].append(r1_val)
                     r2_scores[d].append(r2_val)
+                    avg_scores[d].append((r1_val + r2_val) / 2)
 
     import math
 
-    def safe_pearson(x, y):
-        """Return (r, p) as safe floats, or None if undefined (constant input or too few points)."""
+    result["ai_vs_avg_rater"] = {}
+
+    def safe_spearman(x, y):
+        """Spearman ρ — tidak berasumsi normalitas, cocok untuk data ordinal skala 1–5."""
         if len(x) < 3:
             return None
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            r, p = stats.pearsonr(x, y)
+            r, p = stats.spearmanr(x, y)
         if math.isnan(r) or math.isinf(r):
             return None
         return round(float(r), 3), round(float(p), 4)
 
-    # Calculate Pearson correlations per dimension — selalu sertakan semua dimensi di response
+    # Hitung Spearman ρ per dimensi untuk semua kombinasi
     for d in dimensions:
         n = len(ai_scores[d])
         if n < 3:
-            # Data tidak cukup: tetap sertakan dengan flag agar frontend bisa tampilkan info
             entry = {"r": None, "n": n, "insufficient": True}
-            result["ai_vs_rater1"][d]      = entry
-            result["ai_vs_rater2"][d]      = entry
-            result["rater1_vs_rater2"][d]  = entry
+            result["ai_vs_rater1"][d]    = entry
+            result["ai_vs_rater2"][d]    = entry
+            result["rater1_vs_rater2"][d] = entry
+            result["ai_vs_avg_rater"][d] = entry
             continue
 
-        res_ai_r1 = safe_pearson(ai_scores[d], r1_scores[d])
-        res_ai_r2 = safe_pearson(ai_scores[d], r2_scores[d])
-        res_r1_r2 = safe_pearson(r1_scores[d], r2_scores[d])
+        res_ai_r1  = safe_spearman(ai_scores[d],  r1_scores[d])
+        res_ai_r2  = safe_spearman(ai_scores[d],  r2_scores[d])
+        res_r1_r2  = safe_spearman(r1_scores[d],  r2_scores[d])
+        res_ai_avg = safe_spearman(ai_scores[d],  avg_scores[d])
 
-        result["ai_vs_rater1"][d]     = {"r": res_ai_r1[0], "p_value": res_ai_r1[1], "n": n} if res_ai_r1 else {"r": None, "n": n, "insufficient": True}
-        result["ai_vs_rater2"][d]     = {"r": res_ai_r2[0], "p_value": res_ai_r2[1], "n": n} if res_ai_r2 else {"r": None, "n": n, "insufficient": True}
-        result["rater1_vs_rater2"][d] = {"r": res_r1_r2[0], "p_value": res_r1_r2[1], "n": n} if res_r1_r2 else {"r": None, "n": n, "insufficient": True}
+        result["ai_vs_rater1"][d]     = {"r": res_ai_r1[0],  "p_value": res_ai_r1[1],  "n": n} if res_ai_r1  else {"r": None, "n": n, "insufficient": True}
+        result["ai_vs_rater2"][d]     = {"r": res_ai_r2[0],  "p_value": res_ai_r2[1],  "n": n} if res_ai_r2  else {"r": None, "n": n, "insufficient": True}
+        result["rater1_vs_rater2"][d] = {"r": res_r1_r2[0],  "p_value": res_r1_r2[1],  "n": n} if res_r1_r2  else {"r": None, "n": n, "insufficient": True}
+        result["ai_vs_avg_rater"][d]  = {"r": res_ai_avg[0], "p_value": res_ai_avg[1], "n": n} if res_ai_avg else {"r": None, "n": n, "insufficient": True}
 
-    # Calculate overall correlations (pool all dimensions)
-    all_ai = [v for vals in ai_scores.values() for v in vals]
-    all_r1 = [v for vals in r1_scores.values() for v in vals]
-    all_r2 = [v for vals in r2_scores.values() for v in vals]
+    # Overall (gabungkan semua dimensi)
+    all_ai  = [v for vals in ai_scores.values()  for v in vals]
+    all_r1  = [v for vals in r1_scores.values()  for v in vals]
+    all_r2  = [v for vals in r2_scores.values()  for v in vals]
+    all_avg = [v for vals in avg_scores.values() for v in vals]
 
     if len(all_ai) >= 3:
-        res_ov_ai_r1 = safe_pearson(all_ai, all_r1)
-        res_ov_ai_r2 = safe_pearson(all_ai, all_r2)
-        res_ov_r1_r2 = safe_pearson(all_r1, all_r2)
-
         n_all = len(all_ai)
-        if res_ov_ai_r1:
-            result["ai_vs_rater1"]["overall"] = {"r": res_ov_ai_r1[0], "p_value": res_ov_ai_r1[1], "n": n_all}
-        if res_ov_ai_r2:
-            result["ai_vs_rater2"]["overall"] = {"r": res_ov_ai_r2[0], "p_value": res_ov_ai_r2[1], "n": n_all}
-        if res_ov_r1_r2:
-            result["rater1_vs_rater2"]["overall"] = {"r": res_ov_r1_r2[0], "p_value": res_ov_r1_r2[1], "n": n_all}
+        for key, x, y in [
+            ("ai_vs_rater1",    all_ai, all_r1),
+            ("ai_vs_rater2",    all_ai, all_r2),
+            ("rater1_vs_rater2",all_r1, all_r2),
+            ("ai_vs_avg_rater", all_ai, all_avg),
+        ]:
+            res = safe_spearman(x, y)
+            if res:
+                result[key]["overall"] = {"r": res[0], "p_value": res[1], "n": n_all}
 
     return result

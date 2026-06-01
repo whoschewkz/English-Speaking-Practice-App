@@ -1044,7 +1044,7 @@ export default function AdminPage() {
                     Analisis Korelasi
                   </p>
                   <p className="text-xs mt-0.5" style={{ color:"var(--text3)" }}>
-                    Pearson r antara skor AI dan rater manusia
+                    Spearman ρ antara skor AI dan rater manusia
                   </p>
                 </div>
                 <button onClick={loadCorrelations} disabled={corrLoading}
@@ -1062,7 +1062,7 @@ export default function AdminPage() {
                       Data belum cukup untuk hitung korelasi
                     </p>
                     <p className="text-xs mb-4" style={{ color:"var(--text3)" }}>
-                      Korelasi Pearson butuh minimal 3 sesi yang dinilai oleh <strong>kedua rater</strong>.
+                      Korelasi Spearman butuh minimal 3 sesi yang dinilai oleh <strong>kedua rater</strong>.
                     </p>
                     <div className="flex items-center justify-center gap-3">
                       <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold"
@@ -1079,14 +1079,29 @@ export default function AdminPage() {
                 ) : (
                   <div className="space-y-4">
                     <p className="text-xs" style={{ color:"var(--text3)" }}>
-                      n = {correlations.sample_size} sesi dinilai kedua rater · r = korelasi Pearson
+                      n = {correlations.sample_size} sesi dinilai kedua rater · ρ = Spearman rho
                     </p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {(["ai_vs_rater1","ai_vs_rater2","rater1_vs_rater2"] as const).map(k => (
-                        <div key={k} className="p-5 rounded-2xl" style={{ background:"var(--surface2)" }}>
-                          <p className="text-xs font-semibold mb-3" style={{ color:"var(--text3)" }}>
-                            {k==="ai_vs_rater1"?"AI vs Rater 1":k==="ai_vs_rater2"?"AI vs Rater 2":"Rater 1 vs Rater 2"}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Kolom utama: AI vs Rata-rata Rater — ini yang masuk ke dokumen TA */}
+                      {(["ai_vs_avg_rater","rater1_vs_rater2","ai_vs_rater1","ai_vs_rater2"] as const).map(k => (
+                        <div key={k} className="p-5 rounded-2xl" style={{
+                          background:"var(--surface2)",
+                          border: k==="ai_vs_avg_rater" ? "1px solid var(--accent)" : "none"
+                        }}>
+                          <p className="text-xs font-semibold mb-1" style={{ color: k==="ai_vs_avg_rater"?"var(--accent)":"var(--text3)" }}>
+                            {k==="ai_vs_avg_rater"
+                              ? "★ AI vs Rata-rata Rater (ground truth)"
+                              : k==="rater1_vs_rater2"
+                              ? "Rater 1 vs Rater 2 (inter-rater)"
+                              : k==="ai_vs_rater1"
+                              ? "AI vs Rater 1"
+                              : "AI vs Rater 2"}
                           </p>
+                          {k==="ai_vs_avg_rater" && (
+                            <p className="text-[10px] mb-3" style={{ color:"var(--text3)" }}>
+                              Kolom ini yang digunakan sebagai validasi utama di dokumen TA
+                            </p>
+                          )}
                           <div className="space-y-2">
                             {RATER_DIMS.map(d => {
                               const data = correlations[k]?.[d.key];
@@ -1102,14 +1117,14 @@ export default function AdminPage() {
                               return (
                                 <div key={d.key} className="flex justify-between text-xs">
                                   <span style={{ color:"var(--text2)" }}>{d.label}</span>
-                                  <span className="font-bold" style={{ color:col }}>r = {data.r.toFixed(3)}</span>
+                                  <span className="font-bold" style={{ color:col }}>ρ = {data.r.toFixed(3)}</span>
                                 </div>
                               );
                             })}
                             {correlations[k]?.overall && (
                               <div className="flex justify-between text-xs pt-2 border-t font-bold" style={{ borderColor:"var(--border)" }}>
                                 <span style={{ color:"var(--text)" }}>Overall</span>
-                                <span style={{ color:"var(--accent)" }}>r = {correlations[k].overall.r.toFixed(3)}</span>
+                                <span style={{ color:"var(--accent)" }}>ρ = {correlations[k].overall.r.toFixed(3)}</span>
                               </div>
                             )}
                           </div>
