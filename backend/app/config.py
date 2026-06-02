@@ -31,4 +31,7 @@ SECRET_KEY        = os.getenv("SECRET_KEY", "GANTI_INI_DENGAN_SECRET_PANJANG_DAN
 ALGORITHM         = "HS256"
 ACCESS_TOKEN_EXP  = int(os.getenv("ACCESS_TOKEN_EXP_MINUTES", "30"))
 REFRESH_TOKEN_EXP = int(os.getenv("REFRESH_TOKEN_EXP_DAYS", "7"))
-DATABASE_URL_CFG  = os.getenv("DATABASE_URL", "").strip() or "sqlite:///./speaking.db"
+# DB disimpan di backend/ (satu level di atas package app/) — terpisah dari kode aplikasi
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DEFAULT_DB  = f"sqlite:///{_BACKEND_DIR}/speaking.db"
+DATABASE_URL_CFG  = os.getenv("DATABASE_URL", "").strip() or _DEFAULT_DB

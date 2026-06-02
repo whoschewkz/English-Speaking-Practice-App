@@ -17,7 +17,8 @@ try:
         conn.execute(text("SELECT 1"))
 except Exception as e:
     print(f"[DB] Connection failed for {DATABASE_URL}. Falling back to SQLite. Detail: {e}")
-    DATABASE_URL = "sqlite:///./speaking.db"
+    from .config import _BACKEND_DIR
+    DATABASE_URL = f"sqlite:///{_BACKEND_DIR}/speaking.db"
     engine = make_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
