@@ -90,10 +90,11 @@ app.include_router(validation.router, prefix=API_PREFIX)
 app.include_router(rater.router,     prefix=API_PREFIX)
 
 
-# Serve static audio files
+# Serve static audio files — buat direktori jika belum ada
 uploads_dir = Path(__file__).parent.parent / "uploads"
-if uploads_dir.exists():
-    app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
+uploads_dir.mkdir(parents=True, exist_ok=True)
+(uploads_dir / "audio").mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
 if __name__ == "__main__":
