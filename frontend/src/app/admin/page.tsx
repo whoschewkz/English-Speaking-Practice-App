@@ -19,7 +19,7 @@ type UserAnalytics = {
 };
 type Scenario = { id:number; title:string; description:string|null };
 type User     = { id:number; username:string; email:string; full_name:string|null; role:string; is_active:boolean; created_at:string; last_login_at:string|null };
-type Session  = { id:number; scenario:string; audio_path:string|null; duration_min:number; created_at:string; ai_scores:Record<string,number>; rater_scores:Record<number,Record<string,number>>; rating_status:{rater_1_done:boolean;rater_2_done:boolean;both_done:boolean} };
+type Session  = { id:number; scenario:string; audio_path:string|null; duration_min:number; created_at:string; ai_scores:Record<string,number>; rater_scores:Record<number,Record<string,number>>; rating_status:{rater_1_done:boolean;rater_2_done:boolean;both_done:boolean}; rater_visible:boolean };
 type Tab      = "analytics" | "users" | "scenarios" | "rater";
 type Dim      = "overall"|"range"|"accuracy"|"fluency"|"coherence"|"interaction";
 
@@ -113,6 +113,11 @@ export default function AdminPage() {
   const [correlations,     setCorrelations]     = useState<any>(null);
   const [corrLoading,      setCorrLoading]      = useState(false);
   const [confirmAction,    setConfirmAction]    = useState<{ type:"role"|"active"; user:User; newRole?:string }|null>(null);
+
+  // ── Users tab: search + pagination ──────────────────────────────────────────
+  const [userSearch, setUserSearch] = useState("");
+  const [userPage,   setUserPage]   = useState(1);
+  const USER_PAGE_SIZE = 20;
 
   useEffect(() => {
     setMounted(true);
@@ -636,11 +641,21 @@ export default function AdminPage() {
              TAB USERS
              ══════════════════════ */
           <div className="rounded-3xl overflow-hidden" style={card}>
-            <div className="px-7 py-5 border-b" style={{ borderColor:"var(--border)" }}>
-              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color:"var(--text3)" }}>
-                Manajemen pengguna
-              </p>
-              <p className="text-xs mt-0.5" style={{ color:"var(--text3)" }}>Kelola role dan status akun mahasiswa</p>
+            <div className="px-7 py-5 border-b flex items-center justify-between gap-4" style={{ borderColor:"var(--border)" }}>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest" style={{ color:"var(--text3)" }}>
+                  Manajemen pengguna
+                </p>
+                <p className="text-xs mt-0.5" style={{ color:"var(--text3)" }}>Kelola role dan status akun mahasiswa</p>
+              </div>
+              <input
+                type="text"
+                placeholder="Cari username…"
+                value={userSearch}
+                onChange={e => { setUserSearch(e.target.value); setUserPage(1); }}
+                className="px-3 py-2 rounded-xl text-sm w-48"
+                style={{ background:"var(--surface2)", color:"var(--text)", border:"1px solid var(--border2)", outline:"none" }}
+              />
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -655,7 +670,15 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(u => (
+                  {(() => {
+                    const filtered = users.filter(u =>
+                      u.username.toLowerCase().includes(userSearch.toLowerCase())
+                    );
+                    const totalPages = Math.max(1, Math.ceil(filtered.length / USER_PAGE_SIZE));
+                    const page = Math.min(userPage, totalPages);
+                    const paged = filtered.slice((page-1)*USER_PAGE_SIZE, page*USER_PAGE_SIZE);
+                    return (<>
+                      {paged.map(u => (
                     <tr key={u.id} className="border-b transition-colors"
                       style={{ borderColor:"var(--border)" }}
                       onMouseEnter={e=>(e.currentTarget.style.background="var(--surface2)")}
@@ -731,14 +754,41 @@ export default function AdminPage() {
                       </td>
                     </tr>
                   ))}
-                  {users.length===0 && (
-                    <tr><td colSpan={8} className="px-5 py-12 text-center text-sm" style={{ color:"var(--text3)" }}>
-                      Belum ada pengguna.
-                    </td></tr>
-                  )}
+                      {paged.length===0 && (
+                        <tr><td colSpan={8} className="px-5 py-12 text-center text-sm" style={{ color:"var(--text3)" }}>
+                          {userSearch ? `Tidak ada user dengan username "${userSearch}".` : "Belum ada pengguna."}
+                        </td></tr>
+                      )}
+                    </>);
+                  })()}
                 </tbody>
               </table>
             </div>
+            {/* Pagination */}
+            {(() => {
+              const filtered = users.filter(u => u.username.toLowerCase().includes(userSearch.toLowerCase()));
+              const totalPages = Math.max(1, Math.ceil(filtered.length / USER_PAGE_SIZE));
+              if (totalPages <= 1) return null;
+              return (
+                <div className="px-7 py-4 border-t flex items-center justify-between" style={{ borderColor:"var(--border)" }}>
+                  <p className="text-xs" style={{ color:"var(--text3)" }}>
+                    {filtered.length} pengguna · halaman {Math.min(userPage, totalPages)} / {totalPages}
+                  </p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setUserPage(p => Math.max(1, p-1))} disabled={userPage <= 1}
+                      className="px-3 py-1.5 rounded-xl text-xs border disabled:opacity-30"
+                      style={{ color:"var(--text2)", borderColor:"var(--border2)", background:"var(--surface2)" }}>
+                      ← Prev
+                    </button>
+                    <button onClick={() => setUserPage(p => Math.min(totalPages, p+1))} disabled={userPage >= totalPages}
+                      className="px-3 py-1.5 rounded-xl text-xs border disabled:opacity-30"
+                      style={{ color:"var(--text2)", borderColor:"var(--border2)", background:"var(--surface2)" }}>
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
         ) : tab==="scenarios" ? (
@@ -840,53 +890,66 @@ export default function AdminPage() {
                       Belum ada sesi dengan rekaman audio
                     </div>
                   ) : raterSessions.map(s => (
-                    /* Session item — editorial: judul besar, metadata kecil, badge kanan */
-                    <button key={s.id} onClick={() => selectRaterSession(s)}
-                      className="w-full text-left px-5 py-4 border-b transition-colors"
-                      style={{
-                        borderColor: "var(--border)",
-                        background:  selectedRaterSes?.id===s.id ? "var(--accent-dim)" : "transparent",
-                      }}
-                      onMouseEnter={e => { if(selectedRaterSes?.id!==s.id) e.currentTarget.style.background="var(--surface2)"; }}
-                      onMouseLeave={e => { if(selectedRaterSes?.id!==s.id) e.currentTarget.style.background="transparent"; }}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          {/* Judul skenario lebih besar — hierarki visual jelas */}
-                          <p className="text-sm font-semibold leading-snug truncate" style={{ color:"var(--text)" }}>
-                            {s.scenario}
-                          </p>
-                          {/* Metadata sebagai baris kedua kecil */}
-                          <p className="text-[11px] mt-1 tabular-nums" style={{ color:"var(--text3)" }}>
-                            {new Date(s.created_at).toLocaleDateString("id-ID", { day:"numeric", month:"short" })}
-                            <span className="mx-1.5" style={{ color:"var(--border2)" }}>·</span>
-                            {s.duration_min.toFixed(1)} mnt
-                            <span className="mx-1.5" style={{ color:"var(--border2)" }}>·</span>
-                            <span style={{ color:"var(--text3)" }}>#{s.id}</span>
-                          </p>
+                    <div key={s.id} className="border-b" style={{ borderColor:"var(--border)", opacity: s.rater_visible ? 1 : 0.45 }}>
+                      <button onClick={() => s.rater_visible && selectRaterSession(s)}
+                        className="w-full text-left px-5 pt-4 pb-2 transition-colors"
+                        style={{ background: selectedRaterSes?.id===s.id ? "var(--accent-dim)" : "transparent", cursor: s.rater_visible ? "pointer" : "default" }}
+                        onMouseEnter={e => { if(s.rater_visible && selectedRaterSes?.id!==s.id) e.currentTarget.style.background="var(--surface2)"; }}
+                        onMouseLeave={e => { if(selectedRaterSes?.id!==s.id) e.currentTarget.style.background="transparent"; }}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold leading-snug truncate" style={{ color:"var(--text)" }}>
+                              {s.scenario}
+                            </p>
+                            <p className="text-[11px] mt-1 tabular-nums" style={{ color:"var(--text3)" }}>
+                              {new Date(s.created_at).toLocaleDateString("id-ID", { day:"numeric", month:"short" })}
+                              <span className="mx-1.5" style={{ color:"var(--border2)" }}>·</span>
+                              {s.duration_min.toFixed(1)} mnt
+                              <span className="mx-1.5" style={{ color:"var(--border2)" }}>·</span>
+                              <span style={{ color:"var(--text3)" }}>#{s.id}</span>
+                            </p>
+                          </div>
+                          <div className="flex flex-col gap-1 flex-shrink-0 items-end pt-0.5">
+                            {!s.rater_visible && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                                style={{ background:"rgba(239,68,68,0.08)", color:"var(--danger)", border:"1px solid rgba(239,68,68,0.2)" }}>
+                                Nonaktif
+                              </span>
+                            )}
+                            {s.rating_status.rater_1_done && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                                style={{ background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--accent-border)" }}>
+                                R1 ✓
+                              </span>
+                            )}
+                            {s.rating_status.rater_2_done && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                                style={{ background:"rgba(245,158,11,0.1)", color:"var(--warn)", border:"1px solid rgba(245,158,11,0.3)" }}>
+                                R2 ✓
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        {/* Badge di kanan — status langsung terlihat tanpa scanning */}
-                        <div className="flex flex-col gap-1 flex-shrink-0 items-end pt-0.5">
-                          {s.rating_status.rater_1_done && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                              style={{ background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--accent-border)" }}>
-                              R1 ✓
-                            </span>
-                          )}
-                          {s.rating_status.rater_2_done && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                              style={{ background:"rgba(245,158,11,0.1)", color:"var(--warn)", border:"1px solid rgba(245,158,11,0.3)" }}>
-                              R2 ✓
-                            </span>
-                          )}
-                          {!s.rating_status.rater_1_done && !s.rating_status.rater_2_done && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full"
-                              style={{ background:"var(--surface2)", color:"var(--text3)", border:"1px solid var(--border)" }}>
-                              —
-                            </span>
-                          )}
-                        </div>
+                      </button>
+                      {/* Toggle visibility — hanya admin */}
+                      <div className="px-5 pb-3">
+                        <button
+                          onClick={async () => {
+                            const newVal = !s.rater_visible;
+                            await authFetch(`${API}/api/admin/sessions/${s.id}/rater-visibility`, {
+                              method:"PATCH", headers:{"Content-Type":"application/json"},
+                              body: JSON.stringify({ rater_visible: newVal }),
+                            });
+                            setRaterSessions(p => p.map(x => x.id===s.id ? {...x, rater_visible:newVal} : x));
+                          }}
+                          className="text-[10px] px-2.5 py-1 rounded-lg border transition-all"
+                          style={s.rater_visible
+                            ? { color:"var(--danger)", borderColor:"rgba(239,68,68,0.3)", background:"rgba(239,68,68,0.05)" }
+                            : { color:"var(--accent)", borderColor:"var(--accent-border)",  background:"var(--accent-dim)" }}>
+                          {s.rater_visible ? "Nonaktifkan dari rater" : "Aktifkan ke rater"}
+                        </button>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>

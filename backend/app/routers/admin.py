@@ -55,6 +55,21 @@ def admin_list_scenarios(
     return [{"id": r.id, "title": r.title, "description": r.description} for r in rows]
 
 
+@router.patch("/sessions/{session_id}/rater-visibility")
+def toggle_rater_visibility(
+    session_id: int,
+    body: dict = Body(...),
+    current_user: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    session = db.get(SessionRecordORM, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Sesi tidak ditemukan")
+    session.rater_visible = bool(body.get("rater_visible", True))
+    db.commit()
+    return {"ok": True, "session_id": session_id, "rater_visible": session.rater_visible}
+
+
 @router.post("/scenarios", status_code=201)
 def admin_create_scenario(
     payload: ScenarioIn,

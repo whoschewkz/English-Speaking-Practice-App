@@ -50,6 +50,7 @@ def list_sessions_for_rating(
             "audio_path": s.audio_path,
             "duration_min": s.duration_min,
             "created_at": s.created_at.isoformat(),
+            "rater_visible": bool(s.rater_visible),
             "ai_scores": {
                 "range": round(s.score_range, 2),
                 "accuracy": round(s.score_accuracy, 2),

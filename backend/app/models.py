@@ -48,8 +48,9 @@ class SessionRecordORM(Base):
     comment         = Column(Text, nullable=True)
     duration_min    = Column(Float, nullable=False, default=0.0)
     audio_path      = Column(String(500), nullable=True)
-    full_audio_json = Column(Text, nullable=True)  # JSON: [{role, path}] ordered conversation turns
-    full_text_json  = Column(Text, nullable=True)  # JSON: [{role, content}] conversation transcript
+    full_audio_json = Column(Text, nullable=True)
+    full_text_json  = Column(Text, nullable=True)
+    rater_visible   = Column(Boolean, nullable=False, default=True)  # admin bisa nonaktifkan dari antrian rater
     created_at      = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 

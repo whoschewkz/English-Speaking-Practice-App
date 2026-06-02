@@ -30,8 +30,9 @@ def rater_list_sessions(
     sessions = db.execute(
         sa_select(SessionRecordORM)
         .where(
-            (SessionRecordORM.full_audio_json.isnot(None)) |
-            (SessionRecordORM.audio_path.isnot(None))
+            ((SessionRecordORM.full_audio_json.isnot(None)) |
+             (SessionRecordORM.audio_path.isnot(None))) &
+            (SessionRecordORM.rater_visible == True)
         )
         .order_by(desc(SessionRecordORM.created_at))
         .limit(limit)
