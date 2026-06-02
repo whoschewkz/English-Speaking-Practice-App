@@ -8,8 +8,9 @@ type ConversationTurn = { role: "user" | "assistant"; path: string };
 type RaterSession = {
   id: number;
   scenario: string;
-  audio_path: string | null;       // fallback: file gabungan user-only (sesi lama)
-  full_audio_json: string | null;  // JSON: [{role, path}] urutan lengkap user+AI (sesi baru)
+  audio_path: string | null;
+  full_audio_json: string | null;  // [{role, path}] urutan audio turn-by-turn
+  full_text_json:  string | null;  // [{role, content}] transkrip teks percakapan
   duration_min: number;
   created_at: string;
   my_rater_id:    number;
@@ -59,11 +60,11 @@ const RUBRIC: Record<string, { desc: string; levels: RubricLevel[] }> = {
     ],
   },
   interaction: {
-    desc: "Kejelasan pengucapan, ketepatan tekanan kata, dan intonasi.",
+    desc: "Kemampuan merespons, menjaga alur percakapan, dan mengelaborasi ide secara interaktif.",
     levels: [
-      { score: 1, label: "Lemah",       color: "var(--danger)", text: "Pengucapan sering tidak jelas; tekanan kata dan intonasi sangat tidak natural sehingga sulit dipahami." },
-      { score: 3, label: "Cukup",       color: "var(--warn)",   text: "Dapat dipahami meski ada aksen; tekanan kata atau intonasi kadang tidak tepat." },
-      { score: 5, label: "Sangat Baik", color: "var(--accent)", text: "Pengucapan jelas dan natural; tekanan kata dan intonasi tepat, sangat mudah dipahami." },
+      { score: 1, label: "Lemah",       color: "var(--danger)", text: "Sangat bergantung pada format tanya-jawab; respons sangat singkat dan minim elaborasi." },
+      { score: 3, label: "Cukup",       color: "var(--warn)",   text: "Menjaga percakapan berjalan; merespons pertanyaan dengan cukup baik meski kadang perlu dorongan." },
+      { score: 5, label: "Sangat Baik", color: "var(--accent)", text: "Memulai dan mempertahankan percakapan secara natural; mengelaborasi ide dengan baik tanpa perlu dipancing." },
     ],
   },
 };
@@ -382,6 +383,47 @@ export default function RaterPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Transkrip teks percakapan */}
+              {selected.full_text_json && (() => {
+                type TextTurn = { role: string; content: string };
+                const turns: TextTurn[] = (() => {
+                  try { return JSON.parse(selected.full_text_json!); } catch { return []; }
+                })().filter((m: TextTurn) => m.role === "user" || m.role === "assistant");
+                if (!turns.length) return null;
+                return (
+                  <div className="rounded-3xl p-6" style={card}>
+                    <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "var(--text3)" }}>
+                      Transkrip Percakapan — {selected.scenario}
+                    </p>
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                      {turns.map((t, i) => {
+                        const isUser = t.role === "user";
+                        return (
+                          <div key={i} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+                            <div className="max-w-[85%] rounded-2xl px-4 py-2.5"
+                              style={{
+                                background:  isUser ? "var(--accent-dim)" : "var(--surface2)",
+                                border:      isUser ? "1px solid var(--accent-border)" : "1px solid var(--border2)",
+                              }}>
+                              <p className="text-[10px] font-bold mb-1 uppercase tracking-wider"
+                                style={{ color: isUser ? "var(--accent)" : "var(--text3)" }}>
+                                {isUser ? "Mahasiswa" : "AI"}
+                              </p>
+                              <p className="text-sm leading-relaxed" style={{ color: "var(--text)" }}>
+                                {t.content}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] mt-3" style={{ color: "var(--text3)" }}>
+                      Gunakan transkrip ini sebagai referensi tambahan saat menilai dimensi Range, Accuracy, dan Coherence.
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* Notice: AI scores hidden */}
               <div className="rounded-2xl px-5 py-3 flex items-center gap-3 text-sm"

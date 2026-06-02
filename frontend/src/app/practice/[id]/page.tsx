@@ -394,8 +394,9 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
             score_range:clip(s.range), score_accuracy:clip(s.accuracy),
             score_fluency:clip(s.fluency), score_coherence:clip(s.coherence),
             score_interaction:clip(s.interaction), comment:fbJson.comment||"", duration_min:dur,
-            audio_paths:audioPaths,            // user-only concat (fallback lama)
-            conversation_turns:conversationTurns, // urutan lengkap user+AI untuk rater
+            audio_paths:audioPaths,
+            conversation_turns:conversationTurns,
+            messages:newMsgs.filter((m:Msg)=>m.role!=="system"), // transkrip teks untuk rater
           }),
         });
       } else { setFbRaw(fbJson?.content||"Tidak ada feedback yang dihasilkan."); }

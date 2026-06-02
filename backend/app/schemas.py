@@ -132,6 +132,7 @@ class SaveSessionIn(BaseModel):
     audio_path:         Optional[str]        = None   # backward compat (single)
     audio_paths:        Optional[List[str]]  = None   # semua user recording turn dalam sesi
     conversation_turns: Optional[List[dict]] = None   # [{role, path}] urutan lengkap user+AI
+    messages:           Optional[List[dict]] = None   # [{role, content}] transkrip percakapan teks
     user_id:            Optional[int]        = None   # diisi dari token, bukan dari body
 
 

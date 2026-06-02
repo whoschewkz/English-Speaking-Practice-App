@@ -49,6 +49,7 @@ class SessionRecordORM(Base):
     duration_min    = Column(Float, nullable=False, default=0.0)
     audio_path      = Column(String(500), nullable=True)
     full_audio_json = Column(Text, nullable=True)  # JSON: [{role, path}] ordered conversation turns
+    full_text_json  = Column(Text, nullable=True)  # JSON: [{role, content}] conversation transcript
     created_at      = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 

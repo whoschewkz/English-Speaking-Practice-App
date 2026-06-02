@@ -49,8 +49,9 @@ def rater_list_sessions(
         result.append({
             "id":               s.id,
             "scenario":         s.scenario,
-            "audio_path":       s.audio_path,       # fallback: file gabungan user-only (sesi lama)
-            "full_audio_json":  s.full_audio_json,  # turn-by-turn [{role, path}] (sesi baru)
+            "audio_path":       s.audio_path,
+            "full_audio_json":  s.full_audio_json,
+            "full_text_json":   s.full_text_json,   # [{role, content}] transkrip teks percakapan
             "duration_min":     s.duration_min,
             "created_at":       s.created_at.isoformat(),
             "my_rater_id":      my_id,

@@ -98,6 +98,7 @@ def save_session(
         audio_path=_concat_wav(payload.audio_paths) if payload.audio_paths else payload.audio_path,
         # Simpan urutan lengkap percakapan (user + AI) untuk diputar rater per turn
         full_audio_json=json.dumps(payload.conversation_turns) if payload.conversation_turns else None,
+        full_text_json =json.dumps(payload.messages)           if payload.messages           else None,
     )
     db.add(row); db.commit(); db.refresh(row)
 

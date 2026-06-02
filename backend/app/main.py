@@ -34,6 +34,7 @@ sqlite_add_column_if_missing("sessions",       "score_phonology REAL NOT NULL DE
 sqlite_add_column_if_missing("sessions",       "user_id INTEGER NOT NULL DEFAULT 1")
 sqlite_add_column_if_missing("sessions",       "audio_path TEXT")
 sqlite_add_column_if_missing("sessions",       "full_audio_json TEXT")
+sqlite_add_column_if_missing("sessions",       "full_text_json TEXT")
 sqlite_add_column_if_missing("error_patterns", "weight REAL NOT NULL DEFAULT 1.0")
 
 # Seed
