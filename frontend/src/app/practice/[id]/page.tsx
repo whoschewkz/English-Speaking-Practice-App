@@ -396,7 +396,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
             score_interaction:clip(s.interaction), comment:fbJson.comment||"", duration_min:dur,
             audio_paths:audioPaths,
             conversation_turns:conversationTurns,
-            messages:newMsgs.filter((m:Msg)=>m.role!=="system"), // transkrip teks untuk rater
+            messages:msgs.filter((m:Msg)=>m.role!=="system"),
           }),
         });
       } else { setFbRaw(fbJson?.content||"Tidak ada feedback yang dihasilkan."); }
