@@ -7,7 +7,7 @@ MsgRole = Literal["system", "user", "assistant"]
 
 class Message(BaseModel):
     role: MsgRole
-    content: str = Field(..., min_length=1)
+    content: str = Field(..., min_length=1, max_length=3000)
 
 
 class ChatRequest(BaseModel):

@@ -1,5 +1,6 @@
 import json
 
+import httpx
 from fastapi import APIRouter, Depends, Body
 from fastapi.responses import JSONResponse
 
@@ -87,10 +88,6 @@ async def feedback(
 ):
     if not GROQ_API_KEY:
         return JSONResponse({"error": "Missing GROQ_API_KEY"}, status_code=500)
-    try:
-        import httpx
-    except Exception as e:
-        return JSONResponse({"error": "Missing dependency 'httpx'", "detail": str(e)}, status_code=500)
 
     msgs = [m.dict() for m in req.messages][-40:]
 
@@ -133,10 +130,13 @@ async def feedback(
     url     = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        r = await groq_post_with_retry(client, url, headers=headers, json=body_req)
+    async with httpx.AsyncClient(timeout=12) as client:
+        try:
+            r = await groq_post_with_retry(client, url, headers=headers, json=body_req)
+        except httpx.TimeoutException:
+            return JSONResponse({"error": "feedback_timeout"}, status_code=422)
         if r.status_code != 200:
-            return JSONResponse({"error": "groq_feedback_failed", "detail": r.text}, status_code=500)
+            return JSONResponse({"error": "groq_feedback_failed", "detail": r.text}, status_code=422)
         data = r.json()
 
     content = (data.get("choices") or [{}])[0].get("message", {}).get("content", "") or ""
