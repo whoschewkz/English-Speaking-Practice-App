@@ -176,16 +176,15 @@ async def _groq_json_chat(messages: list, temperature: float = 0.2) -> dict:
     try:
         import httpx
     except Exception: return {}
-    url     = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-    body    = {
+    url  = "https://api.groq.com/openai/v1/chat/completions"
+    body = {
         "model": "llama-3.3-70b-versatile",
         "messages": messages,
         "temperature": temperature,
         "response_format": {"type": "json_object"},
     }
     async with httpx.AsyncClient(timeout=60) as client:
-        r = await client.post(url, headers=headers, json=body)
+        r = await groq_post_with_retry(client, url, json=body)
         if r.status_code != 200: return {}
         content = (r.json().get("choices") or [{}])[0].get("message", {}).get("content", "") or "{}"
         try: return json.loads(content)
