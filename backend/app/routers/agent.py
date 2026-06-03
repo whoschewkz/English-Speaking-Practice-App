@@ -96,9 +96,12 @@ async def agent_reflect(
     system  = {
         "role": "system",
         "content": (
-            "You are an English speaking coach (critic). Return STRICT JSON only:\n"
-            '{"summary":"3-5 sentences","error_patterns":[{"tag":"...","description":"...","examples":["..."],"weight":0}],'
-            '"vocab_targets":[{"topic":"...","items":["..."]}],"objectives_next":["..."]}\nNo extra text.'
+            "You are an English speaking coach. Return STRICT JSON only.\n"
+            "IMPORTANT: Write all text fields in Bahasa Indonesia EXCEPT vocab_targets.items (keep English words).\n"
+            '{"summary":"3-5 kalimat ringkasan sesi dalam Bahasa Indonesia",'
+            '"error_patterns":[{"tag":"kategori singkat","description":"deskripsi kesalahan dalam Bahasa Indonesia","examples":["kutipan dari percakapan"],"weight":0}],'
+            '"vocab_targets":[{"topic":"topik dalam Bahasa Indonesia","items":["english_word1","english_word2"]}],'
+            '"objectives_next":["tujuan latihan berikutnya dalam Bahasa Indonesia"]}\nNo extra text.'
         ),
     }
     msgs     = [m.dict() for m in payload.messages][-60:]
@@ -170,8 +173,13 @@ async def agent_plan(
     system = {
         "role": "system",
         "content": (
-            "You are a session planner. Produce JSON only:\n"
-            '{"scenario":"...","level":1..5,"objectives":["..."],"rubric":["..."],"starter_turns":["..."],"target_time_min":5}\n'
+            "You are a session planner. Produce JSON only.\n"
+            "IMPORTANT: objectives and rubric in Bahasa Indonesia. starter_turns in English (practice prompts).\n"
+            '{"scenario":"scenario name in English","level":1..5,'
+            '"objectives":["tujuan dalam Bahasa Indonesia"],'
+            '"rubric":["kriteria penilaian dalam Bahasa Indonesia"],'
+            '"starter_turns":["opening question in English"],'
+            '"target_time_min":5}\n'
             "No extra text."
         ),
     }

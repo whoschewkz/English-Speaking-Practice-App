@@ -72,10 +72,10 @@ _RUBRIK = (
     "6. Overall = average of 5 scores (1 decimal).\n\n"
     "Return STRICTLY VALID JSON only — no code fences, no extra text:\n"
     '{"scores":{"range":int,"accuracy":int,"fluency":int,"coherence":int,"interaction":int,"overall":float},'
-    '"descriptors":{"range":"evidence+rubric","accuracy":"evidence+rubric",'
-    '"fluency":"evidence+rubric","coherence":"evidence+rubric","interaction":"evidence+rubric"},'
+    '"descriptors":{"range":"(Bahasa Indonesia) bukti dari transkrip + penilaian rubrik","accuracy":"(Bahasa Indonesia) bukti + penilaian",'
+    '"fluency":"(Bahasa Indonesia) bukti + penilaian","coherence":"(Bahasa Indonesia) bukti + penilaian","interaction":"(Bahasa Indonesia) bukti + penilaian"},'
     '"self_check":{"revisions_made":"none or description"},'
-    '"comment":"CEFR level estimate + strengths + 2 improvement actions",'
+    '"comment":"(tulis dalam Bahasa Indonesia) estimasi level CEFR, kekuatan utama, dan 2 area yang perlu ditingkatkan",'
     '"standards":{"rubric":"CEFR-aligned 1-5","method":"anchored-few-shot+self-consistency"}}'
 )
 

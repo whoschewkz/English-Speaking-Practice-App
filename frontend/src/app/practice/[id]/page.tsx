@@ -615,7 +615,7 @@ export default function PracticeSessionPage({ params }:{ params:{ id:string } })
             )}
             {reflectData.vocab_targets.length>0&&(
               <div>
-                <p className="text-xs uppercase tracking-wider mb-2" style={{ color:"var(--text3)" }}>Vocab targets</p>
+                <p className="text-xs uppercase tracking-wider mb-2" style={{ color:"var(--text3)" }}>Target Kosakata</p>
                 <div className="flex flex-wrap gap-2">
                   {reflectData.vocab_targets.flatMap(v=>v.items.slice(0,5).map((w,i)=>(
                     <span key={i} className="text-xs px-2.5 py-1 rounded-lg border"
