@@ -130,9 +130,10 @@ async def feedback(
     url     = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
 
-    async with httpx.AsyncClient(timeout=12) as client:
+    async with httpx.AsyncClient(timeout=10) as client:
         try:
-            r = await groq_post_with_retry(client, url, headers=headers, json=body_req)
+            r = await groq_post_with_retry(client, url, headers=headers, json=body_req,
+                                           max_retries=1)
         except httpx.TimeoutException:
             return JSONResponse({"error": "feedback_timeout"}, status_code=422)
         if r.status_code != 200:
