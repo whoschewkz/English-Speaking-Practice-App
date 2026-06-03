@@ -24,8 +24,8 @@ const nextConfig = {
               "connect-src 'self'",
               // Gambar dari domain sendiri + data URI (avatar, icon)
               "img-src 'self' data:",
-              // Audio dari backend (uploads/audio/)
-              "media-src 'self'",
+              // Audio dari backend (uploads/audio/) + blob: untuk TTS playback
+              "media-src 'self' blob:",
               // Blokir iframe embedding (anti-clickjacking)
               "frame-ancestors 'none'",
             ].join('; '),
