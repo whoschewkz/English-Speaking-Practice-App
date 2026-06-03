@@ -7,7 +7,7 @@ from sqlalchemy import select as sa_select, asc, desc, text
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import PlanORM, PlanItemORM, ErrorPatternORM, VocabTargetORM
+from ..models import PlanORM, PlanItemORM, ErrorPatternORM, VocabTargetORM, SessionRecordORM
 from ..schemas import CompleteIn, ReflectIn, ReflectOut, PlanIn, PlanGenOut
 from ..auth import require_user
 from ..utils import (
@@ -152,6 +152,13 @@ async def agent_plan(
     db: Session = Depends(get_db),
 ):
     user_id = int(current_user["sub"])
+
+    # If session_id is provided, validate it exists and belongs to this user
+    if payload.session_id is not None:
+        session = db.get(SessionRecordORM, payload.session_id)
+        if not session or session.user_id != user_id:
+            return JSONResponse({"error": "session_not_found"}, status_code=404)
+
     prof    = ensure_profile(db, user_id=user_id)
     profile = payload.profile or {
         "level": prof.level,

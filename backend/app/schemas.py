@@ -160,6 +160,7 @@ class ReflectOut(BaseModel):
 
 
 class PlanIn(BaseModel):
+    session_id:      Optional[int]  = None
     user_id:         int            = 1
     profile:         Optional[dict] = None
     error_patterns:  List[dict]     = Field(default_factory=list)

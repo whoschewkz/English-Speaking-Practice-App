@@ -1,3 +1,4 @@
+import re
 import sys
 import os
 import traceback
@@ -17,6 +18,14 @@ router = APIRouter()
 UPLOADS_DIR = Path(__file__).parent.parent.parent / "uploads" / "audio"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
+_ALLOWED_AUDIO_EXTS  = {".wav", ".mp3", ".ogg", ".webm", ".m4a"}
+_ALLOWED_AUDIO_MIMES = {
+    "audio/wav", "audio/wave", "audio/x-wav",
+    "audio/mpeg", "audio/mp3", "audio/ogg",
+    "audio/webm", "audio/mp4", "audio/x-m4a",
+}
+_MIN_AUDIO_BYTES = 44  # minimum valid WAV header size
+
 
 @router.post("/transcribe")
 async def transcribe_audio(
@@ -31,15 +40,37 @@ async def transcribe_audio(
     except Exception as e:
         return JSONResponse({"error": "Missing dependency 'httpx'", "detail": str(e)}, status_code=500)
 
-    url        = "https://api.groq.com/openai/v1/audio/transcriptions"
-    headers    = {"Authorization": f"Bearer {GROQ_API_KEY}"}
+    # Sanitize filename: strip path traversal and dangerous characters
+    raw_name = audio.filename or "speech.wav"
+    safe_name = Path(raw_name).name                          # strip directory components
+    safe_name = re.sub(r'[<>:"/\\|?*]', '_', safe_name)     # strip shell/HTML-dangerous chars
+    if not safe_name or safe_name.startswith('.'):
+        safe_name = "speech.wav"
+
+    # Validate file extension (use only the last extension)
+    suffix = Path(safe_name).suffix.lower()
+    if suffix not in _ALLOWED_AUDIO_EXTS:
+        return JSONResponse({"error": "Unsupported file type"}, status_code=415)
+
+    # Validate MIME type declared by client
+    client_mime = (audio.content_type or "").split(";")[0].strip().lower()
+    if client_mime and client_mime not in _ALLOWED_AUDIO_MIMES:
+        return JSONResponse({"error": "Unsupported media type"}, status_code=415)
+
     file_bytes = await audio.read()
-    filename   = audio.filename or "speech.wav"
+
+    # Reject obviously invalid/truncated audio (a valid WAV header alone is 44 bytes)
+    if len(file_bytes) < _MIN_AUDIO_BYTES:
+        return JSONResponse({"error": "Audio file too small or corrupted"}, status_code=400)
+
+    url      = "https://api.groq.com/openai/v1/audio/transcriptions"
+    headers  = {"Authorization": f"Bearer {GROQ_API_KEY}"}
+    filename = safe_name
 
     if filename.endswith(".wav"):   content_type = "audio/wav"
     elif filename.endswith(".mp3"): content_type = "audio/mpeg"
     elif filename.endswith(".ogg"): content_type = "audio/ogg"
-    else:                           content_type = audio.content_type or "audio/wav"
+    else:                           content_type = client_mime or "audio/wav"
 
     files = {"file": (filename, file_bytes, content_type)}
     # prompt membantu Whisper prioritaskan English tanpa memaksa translate
