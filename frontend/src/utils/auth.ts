@@ -6,15 +6,15 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000
 export const TokenStore = {
   set(access: string, refresh: string, role: string, username: string) {
     if (typeof window === "undefined") return;
-    sessionStorage.setItem("access_token", access);
-    sessionStorage.setItem("refresh_token", refresh);
+    sessionStorage.setItem("access_token", btoa(access));
+    sessionStorage.setItem("refresh_token", btoa(refresh));
     sessionStorage.setItem("role", role);
     sessionStorage.setItem("username", username);
     document.cookie = `is_authenticated=true; path=/; SameSite=Strict`;
     document.cookie = `user_role=${role}; path=/; SameSite=Strict`;
   },
-  getAccess():   string | null { return typeof window !== "undefined" ? sessionStorage.getItem("access_token")  : null; },
-  getRefresh():  string | null { return typeof window !== "undefined" ? sessionStorage.getItem("refresh_token") : null; },
+  getAccess():   string | null { const v = typeof window !== "undefined" ? sessionStorage.getItem("access_token")  : null; return v ? atob(v) : null; },
+  getRefresh():  string | null { const v = typeof window !== "undefined" ? sessionStorage.getItem("refresh_token") : null; return v ? atob(v) : null; },
   getRole():     string | null { return typeof window !== "undefined" ? sessionStorage.getItem("role")          : null; },
   getUsername(): string | null { return typeof window !== "undefined" ? sessionStorage.getItem("username")      : null; },
   isLoggedIn():  boolean       {
