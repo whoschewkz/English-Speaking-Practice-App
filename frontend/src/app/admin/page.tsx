@@ -49,13 +49,16 @@ function cefrKey(s:number){ if(s>=5.0)return"C2"; if(s>=4.0)return"C1"; if(s>=3.
 function toP(s:number){ return Math.max(0,Math.min(100,((s-1)/4)*100)); }
 function scoreCol(s:number){ return s>=3.5?"var(--accent)":s>=2.5?"var(--warn)":"var(--danger)"; }
 
-// Build multi-user line chart data
-function buildMultiData(users: UserAnalytics[], dim: Dim) {
+// Build multi-user line chart data with optional session range
+function buildMultiData(users: UserAnalytics[], dim: Dim, from = 1, to = 7) {
   const maxSessions = Math.max(...users.map(u=>u.score_trend.length), 0);
   if (!maxSessions) return [];
-  return Array.from({ length: maxSessions }, (_, i) => {
-    const pt: Record<string,any> = { session: i+1 };
-    users.forEach(u => { pt[u.username] = u.score_trend[i]?.[dim] ?? null; });
+  const start = Math.max(0, from - 1);
+  const end   = Math.min(maxSessions, to);
+  return Array.from({ length: Math.max(0, end - start) }, (_, i) => {
+    const idx = start + i;
+    const pt: Record<string,any> = { session: idx + 1 };
+    users.forEach(u => { pt[u.username] = u.score_trend[idx]?.[dim] ?? null; });
     return pt;
   });
 }
@@ -96,6 +99,10 @@ export default function AdminPage() {
   const [success,    setSuccess]    = useState<string|null>(null);
   const [selected,   setSelected]   = useState<UserAnalytics|null>(null);
   const [activeDim,  setActiveDim]  = useState<Dim>("overall");
+  const [sessionFrom, setSessionFrom] = useState(1);
+  const [sessionTo,   setSessionTo]   = useState(7);
+  const [inputFrom,   setInputFrom]   = useState("1");
+  const [inputTo,     setInputTo]     = useState("7");
   const [newTitle,   setNewTitle]   = useState("");
   const [newDesc,    setNewDesc]    = useState("");
   const [saving,     setSaving]     = useState(false);
@@ -217,7 +224,16 @@ export default function AdminPage() {
     finally { setRaterSaving(false); }
   };
 
-  const multiData  = useMemo(() => buildMultiData(analytics, activeDim), [analytics, activeDim]);
+  const maxSessions = useMemo(() => Math.max(...analytics.map(u => u.score_trend.length), 0), [analytics]);
+
+  // Reset ke default 7 sesi setiap kali data analytics berubah
+  useEffect(() => {
+    const to = Math.min(7, maxSessions) || 7;
+    setSessionFrom(1); setSessionTo(to);
+    setInputFrom("1"); setInputTo(String(to));
+  }, [maxSessions]);
+
+  const multiData  = useMemo(() => buildMultiData(analytics, activeDim, sessionFrom, sessionTo), [analytics, activeDim, sessionFrom, sessionTo]);
   const radarData  = useMemo(() => selected ? [
     {dim:"Kosakata",   value:selected.ma.range},
     {dim:"Tata Bahasa",value:selected.ma.accuracy},
@@ -440,6 +456,61 @@ export default function AdminPage() {
                   ))}
                 </div>
               </div>
+
+              {/* ── Range filter ── */}
+              {analytics.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 mb-5 p-4 rounded-2xl"
+                  style={{ background:"var(--surface2)", border:"1px solid var(--border)" }}>
+                  <span className="text-xs font-medium" style={{ color:"var(--text3)" }}>Tampilkan sesi ke-</span>
+                  <input type="number" min={1} max={maxSessions || 999} value={inputFrom}
+                    onChange={e => setInputFrom(e.target.value)}
+                    className="w-16 px-2 py-1 rounded-lg text-sm text-center tabular-nums"
+                    style={{ background:"var(--surface)", color:"var(--text)", border:"1px solid var(--border2)", outline:"none" }} />
+                  <span className="text-xs" style={{ color:"var(--text3)" }}>hingga</span>
+                  <input type="number" min={1} max={maxSessions || 999} value={inputTo}
+                    onChange={e => setInputTo(e.target.value)}
+                    className="w-16 px-2 py-1 rounded-lg text-sm text-center tabular-nums"
+                    style={{ background:"var(--surface)", color:"var(--text)", border:"1px solid var(--border2)", outline:"none" }} />
+                  <button
+                    onClick={() => {
+                      const f = Math.max(1, parseInt(inputFrom) || 1);
+                      const t = Math.max(f, parseInt(inputTo) || 7);
+                      setSessionFrom(f); setSessionTo(t);
+                      setInputFrom(String(f)); setInputTo(String(t));
+                    }}
+                    className="px-4 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95"
+                    style={{ background:"var(--accent)", color:"#0c0c10" }}>
+                    Terapkan
+                  </button>
+                  <div className="flex gap-1.5 ml-1">
+                    {[7, 15].map(n => (
+                      <button key={n}
+                        onClick={() => { setSessionFrom(1); setSessionTo(n); setInputFrom("1"); setInputTo(String(n)); }}
+                        className="px-3 py-1.5 rounded-xl text-xs border transition-all"
+                        style={{
+                          color:       sessionFrom===1 && sessionTo===n ? "#0c0c10" : "var(--text2)",
+                          background:  sessionFrom===1 && sessionTo===n ? "var(--accent)" : "transparent",
+                          borderColor: sessionFrom===1 && sessionTo===n ? "var(--accent)" : "var(--border2)",
+                        }}>
+                        {n} sesi
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => { setSessionFrom(1); setSessionTo(maxSessions); setInputFrom("1"); setInputTo(String(maxSessions)); }}
+                      className="px-3 py-1.5 rounded-xl text-xs border transition-all"
+                      style={{
+                        color:       sessionTo===maxSessions && sessionFrom===1 ? "#0c0c10" : "var(--text2)",
+                        background:  sessionTo===maxSessions && sessionFrom===1 ? "var(--accent)" : "transparent",
+                        borderColor: sessionTo===maxSessions && sessionFrom===1 ? "var(--accent)" : "var(--border2)",
+                      }}>
+                      Semua ({maxSessions})
+                    </button>
+                  </div>
+                  <span className="text-xs ml-auto" style={{ color:"var(--text3)" }}>
+                    Menampilkan {multiData.length} dari {maxSessions} sesi
+                  </span>
+                </div>
+              )}
 
               {analytics.length===0 ? (
                 <div className="h-64 flex flex-col items-center justify-center" style={{ color:"var(--text3)" }}>
