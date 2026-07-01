@@ -227,11 +227,13 @@ def calculate_correlations(
         result["rater1_vs_rater2"][d] = {"r": res_r1_r2[0],  "p_value": res_r1_r2[1],  "n": n} if res_r1_r2  else {"r": None, "n": n, "insufficient": True}
         result["ai_vs_avg_rater"][d]  = {"r": res_ai_avg[0], "p_value": res_ai_avg[1], "n": n} if res_ai_avg else {"r": None, "n": n, "insufficient": True}
 
-    # Overall (gabungkan semua dimensi)
-    all_ai  = [v for vals in ai_scores.values()  for v in vals]
-    all_r1  = [v for vals in r1_scores.values()  for v in vals]
-    all_r2  = [v for vals in r2_scores.values()  for v in vals]
-    all_avg = [v for vals in avg_scores.values() for v in vals]
+    # BENAR — hitung overall per sesi sebagai rata-rata 5 dimensi
+    all_ai, all_r1, all_r2, all_avg = [], [], [], []
+    for i in range(result["sample_size"]):
+        all_ai.append(sum(ai_scores[d][i] for d in dimensions) / 5)
+        all_r1.append(sum(r1_scores[d][i] for d in dimensions) / 5)
+        all_r2.append(sum(r2_scores[d][i] for d in dimensions) / 5)
+        all_avg.append(sum(avg_scores[d][i] for d in dimensions) / 5)
 
     if len(all_ai) >= 3:
         n_all = len(all_ai)
