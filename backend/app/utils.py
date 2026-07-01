@@ -183,12 +183,16 @@ async def _groq_json_chat(messages: list, temperature: float = 0.2) -> dict:
         "temperature": temperature,
         "response_format": {"type": "json_object"},
     }
-    async with httpx.AsyncClient(timeout=60) as client:
-        r = await groq_post_with_retry(client, url, json=body)
-        if r.status_code != 200: return {}
-        content = (r.json().get("choices") or [{}])[0].get("message", {}).get("content", "") or "{}"
-        try: return json.loads(content)
-        except: return {}
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            r = await groq_post_with_retry(client, url, json=body)
+            if r.status_code != 200: return {}
+            content = (r.json().get("choices") or [{}])[0].get("message", {}).get("content", "") or "{}"
+            try: return json.loads(content)
+            except: return {}
+    except Exception as e:
+        print(f"[_groq_json_chat] error: {e}", flush=True)
+        return {}
 
 
 def _weak_focus_from_profile(p: ProfileORM) -> str:

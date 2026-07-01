@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const isDev = process.env.NODE_ENV !== 'production';
+
 const nextConfig = {
   poweredByHeader: false,
 
@@ -15,18 +17,18 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
-              // Google Fonts CSS + inline styles (Tailwind, theme script)
+              // Dev: tambah unsafe-eval untuk webpack HMR; prod: tidak perlu
+              isDev
+                ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+                : "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              // Google Fonts file (.woff2)
               "font-src 'self' https://fonts.gstatic.com",
-              // API calls ke backend + audio uploads
-              "connect-src 'self'",
-              // Gambar dari domain sendiri + data URI (avatar, icon)
+              // Dev: izinkan koneksi ke localhost:8000 (backend lokal)
+              isDev
+                ? "connect-src 'self' http://localhost:8000 ws://localhost:3000"
+                : "connect-src 'self'",
               "img-src 'self' data:",
-              // Audio dari backend (uploads/audio/) + blob: untuk TTS playback
               "media-src 'self' blob:",
-              // Blokir iframe embedding (anti-clickjacking)
               "frame-ancestors 'none'",
             ].join('; '),
           },

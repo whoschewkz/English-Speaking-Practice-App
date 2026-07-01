@@ -107,11 +107,14 @@ async def agent_reflect(
     msgs     = [m.dict() for m in payload.messages][-60:]
     user_msg = {"role": "user", "content": json.dumps({"dialogue": msgs, "feedback": payload.feedback}, ensure_ascii=False)}
     data     = await _groq_json_chat([system, user_msg], temperature=0.2)
+    def _as_list(val, default=None):
+        return val if isinstance(val, list) else (default or [])
+
     out      = {
         "summary":         (data.get("summary") or "")[:2000],
-        "error_patterns":  data.get("error_patterns", [])[:5],
-        "vocab_targets":   data.get("vocab_targets", [])[:2],
-        "objectives_next": data.get("objectives_next", [])[:5],
+        "error_patterns":  _as_list(data.get("error_patterns"))[:5],
+        "vocab_targets":   _as_list(data.get("vocab_targets"))[:2],
+        "objectives_next": _as_list(data.get("objectives_next"))[:5],
     }
 
     for ep in out["error_patterns"]:

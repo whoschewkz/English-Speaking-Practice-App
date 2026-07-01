@@ -988,16 +988,36 @@ export default function AdminPage() {
                               </span>
                             )}
                             {s.rating_status.rater_1_done && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                                style={{ background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--accent-border)" }}>
-                                R1 ✓
-                              </span>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (!confirm(`Batalkan penilaian Rater 1 untuk sesi #${s.id}?`)) return;
+                                  await authFetch(`${API}/api/admin/validation/assessments/${s.id}/1`, { method: "DELETE" });
+                                  loadRaterSessions();
+                                  if (selectedRaterSes?.id === s.id) setSelectedRaterSes(null);
+                                  flash("Penilaian Rater 1 dibatalkan");
+                                }}
+                                className="text-[10px] px-2 py-0.5 rounded-full font-semibold transition-all"
+                                style={{ background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--accent-border)" }}
+                                title="Klik untuk batalkan penilaian Rater 1">
+                                R1 ✓ ×
+                              </button>
                             )}
                             {s.rating_status.rater_2_done && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                                style={{ background:"rgba(245,158,11,0.1)", color:"var(--warn)", border:"1px solid rgba(245,158,11,0.3)" }}>
-                                R2 ✓
-                              </span>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (!confirm(`Batalkan penilaian Rater 2 untuk sesi #${s.id}?`)) return;
+                                  await authFetch(`${API}/api/admin/validation/assessments/${s.id}/2`, { method: "DELETE" });
+                                  loadRaterSessions();
+                                  if (selectedRaterSes?.id === s.id) setSelectedRaterSes(null);
+                                  flash("Penilaian Rater 2 dibatalkan");
+                                }}
+                                className="text-[10px] px-2 py-0.5 rounded-full font-semibold transition-all"
+                                style={{ background:"rgba(245,158,11,0.1)", color:"var(--warn)", border:"1px solid rgba(245,158,11,0.3)" }}
+                                title="Klik untuk batalkan penilaian Rater 2">
+                                R2 ✓ ×
+                              </button>
                             )}
                           </div>
                         </div>

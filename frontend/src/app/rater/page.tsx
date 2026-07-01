@@ -151,6 +151,18 @@ export default function RaterPage() {
     finally { setSaving(false); }
   };
 
+  const cancelScore = async (s: RaterSession) => {
+    if (!confirm(`Batalkan penilaian kamu untuk sesi #${s.id}?`)) return;
+    try {
+      const r = await authFetch(`${API}/api/admin/validation/assessments/${s.id}/${s.my_rater_id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error(await r.text());
+      setSuccess("Penilaian dibatalkan.");
+      setTimeout(() => setSuccess(null), 3000);
+      if (selected?.id === s.id) setSelected(null);
+      loadSessions();
+    } catch (e: any) { setErr(e?.message); }
+  };
+
   const logout = async () => {
     const { logout: lo } = await import("@/utils/auth");
     lo();
@@ -287,10 +299,18 @@ export default function RaterPage() {
                   {/* Hanya tampilkan status penilaian SENDIRI — tidak tahu status rater lain */}
                   <div className="flex gap-1.5">
                     {s.my_rating_done ? (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                        style={{ background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--accent-border)" }}>
-                        R{s.my_rater_id} ✓ Sudah dinilai
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                          style={{ background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--accent-border)" }}>
+                          R{s.my_rater_id} ✓ Sudah dinilai
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); cancelScore(s); }}
+                          className="text-[10px] px-2 py-0.5 rounded-full font-semibold transition-all"
+                          style={{ background:"rgba(239,68,68,0.08)", color:"var(--danger)", border:"1px solid rgba(239,68,68,0.25)" }}>
+                          Batalkan
+                        </button>
+                      </div>
                     ) : (
                       <span className="text-[10px] px-2 py-0.5 rounded-full"
                         style={{ background: "var(--surface2)", color: "var(--text3)", border: "1px solid var(--border)" }}>

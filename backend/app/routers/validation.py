@@ -117,6 +117,27 @@ def save_assessment(
     return {"ok": True, "session_id": payload.session_id, "rater_id": payload.rater_id}
 
 
+@router.delete("/assessments/{session_id}/{rater_id}")
+def delete_assessment(
+    session_id: int,
+    rater_id: int,
+    current_user: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Hapus penilaian rater untuk sesi tertentu."""
+    assessment = db.execute(
+        sa_select(RaterAssessmentORM).where(
+            RaterAssessmentORM.session_id == session_id,
+            RaterAssessmentORM.rater_id == rater_id,
+        )
+    ).scalar_one_or_none()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Penilaian tidak ditemukan")
+    db.delete(assessment)
+    db.commit()
+    return {"ok": True, "session_id": session_id, "rater_id": rater_id}
+
+
 @router.get("/correlations")
 def calculate_correlations(
     current_user: dict = Depends(require_admin),

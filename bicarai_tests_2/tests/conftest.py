@@ -248,7 +248,7 @@ def save_dummy_session(user_token: str, scenario: str = "Job Interview") -> int 
             "score_accuracy":     3.0,
             "score_fluency":      3.0,
             "score_coherence":    3.0,
-            "score_phonology":    3.0,
+            "score_interaction":   3.0,
             "comment":            "Sesi dummy untuk pengujian",
             "duration_min":       5.0,
             "conversation_turns": [{"role": "user", "path": "dummy_test.wav"}],
@@ -256,6 +256,7 @@ def save_dummy_session(user_token: str, scenario: str = "Job Interview") -> int 
     )
     if resp.status_code in (200, 201):
         return resp.json().get("id")
+    print(f"[save_dummy_session] FAILED {resp.status_code}: {resp.text[:500]}")
     return None
 
 
