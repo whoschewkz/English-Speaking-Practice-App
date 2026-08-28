@@ -122,7 +122,7 @@ async def feedback(
             llm_msgs.append(m)
 
     body_req = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "openai/gpt-oss-120b",
         "messages": [system_prompt, *llm_msgs],
         "temperature": 0.2,
         "response_format": {"type": "json_object"},

@@ -174,7 +174,7 @@ async def chat(
             final_messages = [final_messages[0], *final_messages[-14:]]
 
         body_req = {
-            "model":      "llama-3.3-70b-versatile",
+            "model":      "openai/gpt-oss-120b",
             "messages":   final_messages,
             "temperature": 0.3,
             "max_tokens": 150,   # 2-4 kalimat cukup ~80-120 token
@@ -222,7 +222,7 @@ async def chat_open(
         )
 
         body_req = {
-            "model": "llama-3.3-70b-versatile",
+            "model": "openai/gpt-oss-120b",
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.5,
         }
