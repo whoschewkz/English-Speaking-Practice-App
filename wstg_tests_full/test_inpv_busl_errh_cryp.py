@@ -96,12 +96,11 @@ def test_INPV_05_sql_injection():
         r = requests.post(f"{BASE_URL}/api/auth/login",
                           json={"username": payload, "password":"test"}, timeout=10)
         assert r.status_code in [401, 422, 429]
-        # Cek tidak ada SQL error spesifik — hindari cek kata "error" karena
-        # respons rate limit juga mengandung JSON key "error"
+        
         body = r.text.lower()
         assert "sqlite" not in body
         assert "syntax error in sql" not in body
-        assert "sqlalchemy" not in body
+        assert "sqlalchemy" not in bodyssql
         assert "sql syntax" not in body
 
 def test_INPV_06_ldap_injection():

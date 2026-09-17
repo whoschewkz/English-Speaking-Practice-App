@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Body, UploadFile, File, Form
 from fastapi.responses import JSONResponse, Response
 
-from ..config import GROQ_API_KEY, GOOGLE_APPLICATION_CREDENTIALS
+from ..config import GROQ_API_KEY, GOOGLE_APPLICATION_CREDENTIALS, GROQ_CHAT_MODEL, GROQ_TRANSCRIBE_MODEL
 from ..schemas import ChatRequest, ChatOpenRequest
 from ..auth import require_user
 from ..utils import groq_post_with_retry
@@ -75,7 +75,7 @@ async def transcribe_audio(
     files = {"file": (filename, file_bytes, content_type)}
     # prompt membantu Whisper prioritaskan English tanpa memaksa translate
     data  = {
-        "model":       "whisper-large-v3",
+        "model":       GROQ_TRANSCRIBE_MODEL,
         "temperature": 0.0,
         "prompt":      "English speaking practice session. The speaker may have an Indonesian accent.",
         "language":    language or "en",  # Force English to prevent auto-detection & translation
@@ -174,7 +174,7 @@ async def chat(
             final_messages = [final_messages[0], *final_messages[-14:]]
 
         body_req = {
-            "model":      "openai/gpt-oss-120b",
+            "model":      GROQ_CHAT_MODEL,
             "messages":   final_messages,
             "temperature": 0.3,
             "max_tokens": 150,   # 2-4 kalimat cukup ~80-120 token
@@ -222,7 +222,7 @@ async def chat_open(
         )
 
         body_req = {
-            "model": "openai/gpt-oss-120b",
+            "model": GROQ_CHAT_MODEL,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.5,
         }

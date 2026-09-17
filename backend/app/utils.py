@@ -6,7 +6,7 @@ from math import fsum
 from sqlalchemy import select as sa_select, asc
 from sqlalchemy.orm import Session
 
-from .config import GROQ_API_KEY, GROQ_API_KEYS
+from .config import GROQ_API_KEY, GROQ_API_KEYS, GROQ_CHAT_MODEL
 from .models import ProfileORM
 
 
@@ -178,7 +178,7 @@ async def _groq_json_chat(messages: list, temperature: float = 0.2) -> dict:
     except Exception: return {}
     url  = "https://api.groq.com/openai/v1/chat/completions"
     body = {
-        "model": "openai/gpt-oss-120b",
+        "model": GROQ_CHAT_MODEL,
         "messages": messages,
         "temperature": temperature,
         "response_format": {"type": "json_object"},

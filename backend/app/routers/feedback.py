@@ -4,7 +4,7 @@ import httpx
 from fastapi import APIRouter, Depends, Body
 from fastapi.responses import JSONResponse
 
-from ..config import GROQ_API_KEY
+from ..config import GROQ_API_KEY, GROQ_CHAT_MODEL
 from ..schemas import FeedbackIn
 from ..auth import require_user
 from ..utils import _normalize_scores_obj, _extract_json_block, _objective_from_messages, groq_post_with_retry
@@ -122,7 +122,7 @@ async def feedback(
             llm_msgs.append(m)
 
     body_req = {
-        "model": "openai/gpt-oss-120b",
+        "model": GROQ_CHAT_MODEL,
         "messages": [system_prompt, *llm_msgs],
         "temperature": 0.2,
         "response_format": {"type": "json_object"},
