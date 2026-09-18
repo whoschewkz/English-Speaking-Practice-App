@@ -9,6 +9,7 @@ except Exception:
 API_PREFIX   = os.getenv("API_PREFIX", "/api")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_CHAT_MODEL = os.getenv("GROQ_CHAT_MODEL", "qwen/qwen3.8-27b")
+GROQ_EVAL_MODEL = os.getenv("GROQ_EVAL_MODEL", GROQ_CHAT_MODEL)
 GROQ_TRANSCRIBE_MODEL = os.getenv("GROQ_TRANSCRIBE_MODEL", "whisper-large-v3")
 
 # Pool of Groq keys — rotated automatically on rate limit
